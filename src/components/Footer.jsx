@@ -6,7 +6,7 @@ const Footer = () => {
   return (
     <footer className="footer">
       <p>
-        {new Date().getFullYear()}. Strona stworzona przez Michała Ruska, Łukasza Iwańskiego
+        {new Date().getFullYear()}. Strona stworzona przez Michała Ruska i Łukasza Iwańskiego
       </p>
     </footer>
   );

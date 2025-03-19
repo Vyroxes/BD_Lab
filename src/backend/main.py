@@ -3,11 +3,13 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
-from datetime import timedelta
 from sqlalchemy.exc import IntegrityError
+from flasgger import Swagger
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+
+swagger = Swagger(app)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///products.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -38,6 +40,30 @@ def check_api_key():
 
 @app.route('/products', methods=['GET'])
 def products():
+    """
+    Pobierz wszystkie produkty
+    ---
+    parameters:
+      - name: X-API-KEY
+        in: header
+        required: true
+        type: string
+        description: Klucz API do autoryzacji.
+    responses:
+      200:
+        description: Lista produktów
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              product:
+                type: string
+      403:
+        description: Brak poprawnego klucza API
+    """
     if not check_api_key():
         return jsonify({"error": "Brak poprawnego klucza API"}), 403
 
@@ -47,16 +73,71 @@ def products():
 
 @app.route('/product/<int:product_id>', methods=['GET'])
 def product(product_id):
+    """
+    Pobierz produkt
+    ---
+    parameters:
+      - name: product_id
+        in: path
+        type: integer
+        required: true
+        description: ID produktu, który ma zostać pobrany.
+      - name: X-API-KEY
+        in: header
+        required: true
+        type: string
+        description: Klucz API do autoryzacji.
+    responses:
+      200:
+        description: Produkt znaleziony
+        schema:
+          type: object
+          properties:
+            id:
+              type: integer
+            product:
+              type: string
+      404:
+        description: Produkt nie znaleziony
+      403:
+        description: Brak poprawnego klucza API
+    """
     if not check_api_key():
         return jsonify({"error": "Brak poprawnego klucza API"}), 403
 
-    product = Products.query.get(product_id)
+    product = Products.query.filter_by(id=product_id).first()
     if not product:
         return jsonify({"message": "Brak produktu w bazie danych."}), 404
     return jsonify(product.to_dict()), 200
 
 @app.route('/add-product', methods=['POST'])
 def add_product():
+    """
+    Dodaj nowy produkt
+    ---
+    parameters:
+      - name: product
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            product:
+              type: string
+              description: Nazwa produktu
+      - name: X-API-KEY
+        in: header
+        required: true
+        type: string
+        description: Klucz API do autoryzacji.
+    responses:
+      201:
+        description: Produkt dodany do bazy danych
+      400:
+        description: Błąd walidacji (np. za krótka nazwa)
+      403:
+        description: Brak poprawnego klucza API
+    """
     try:
         if not check_api_key():
             return jsonify({"error": "Brak poprawnego klucza API"}), 403
@@ -77,10 +158,32 @@ def add_product():
 
 @app.route('/delete-product/<int:product_id>', methods=['DELETE'])
 def delete_product(product_id):
+    """
+    Usuń produkt
+    ---
+    parameters:
+      - name: product_id
+        in: path
+        type: integer
+        required: true
+        description: ID produktu, który ma zostać usunięty.
+      - name: X-API-KEY
+        in: header
+        required: true
+        type: string
+        description: Klucz API do autoryzacji.
+    responses:
+      200:
+        description: Produkt usunięty
+      404:
+        description: Produkt nie znaleziony
+      403:
+        description: Brak poprawnego klucza API
+    """
     if not check_api_key():
         return jsonify({"error": "Brak poprawnego klucza API"}), 403
 
-    product = Products.query.get(product_id)
+    product = Products.query.filter_by(id=product_id).first()
     if not product:
         return jsonify({"message": "Brak produktu w bazie danych."}), 404
 
@@ -90,10 +193,41 @@ def delete_product(product_id):
 
 @app.route('/edit-product/<int:product_id>', methods=['PATCH'])
 def edit_product(product_id):
+    """
+    Edytuj produkt
+    ---
+    parameters:
+      - name: product_id
+        in: path
+        type: integer
+        required: true
+        description: ID produktu, który ma zostać edytowany.
+      - name: product
+        in: body
+        required: false
+        schema:
+          type: object
+          properties:
+            product:
+              type: string
+              description: Nowa nazwa produktu
+      - name: X-API-KEY
+        in: header
+        required: true
+        type: string
+        description: Klucz API do autoryzacji.
+    responses:
+      200:
+        description: Produkt zaktualizowany
+      404:
+        description: Produkt nie znaleziony
+      403:
+        description: Brak poprawnego klucza API
+    """
     if not check_api_key():
         return jsonify({"error": "Brak poprawnego klucza API"}), 403
 
-    product = Products.query.get(product_id)
+    product = Products.query.filter_by(id=product_id).first()
     if not product:
         return jsonify({"message": "Brak produktu w bazie danych."}), 404
 
