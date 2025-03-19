@@ -1,0 +1,20 @@
+.product-container,
+.product-form {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.product-form input {
+    margin-left: 10px;
+}
+
+.product-form-buttons {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
