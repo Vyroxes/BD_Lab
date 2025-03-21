@@ -11,7 +11,9 @@ const Products = () => {
     const [loading, setLoading] = useState(true);
     const [product, setProduct] = useState("");
 
-    const API_KEY = 'zA.w>5rtF?MscTJm,owF';
+    const ADDRESS = import.meta.env.VITE_ADDRESS;
+    const PORT = import.meta.env.VITE_PORT;
+    const API_KEY = import.meta.env.VITE_API_KEY;
 
     useEffect(() => {
         fetchProducts();
@@ -20,7 +22,7 @@ const Products = () => {
     const fetchProducts = async () => {
         try 
         {
-            const response = await axios.get(`http://localhost:5000/products`, {
+            const response = await axios.get(`${ADDRESS}${PORT}/products`, {
                 headers: {
                     'X-API-KEY': API_KEY
                 },
@@ -42,7 +44,7 @@ const Products = () => {
     const addProduct = async () => {
         try 
         {
-            const response = await axios.post(`http://localhost:5000/add-product`, {
+            const response = await axios.post(`${ADDRESS}${PORT}/add-product`, {
                 product: product
             }, {
                 headers: {
@@ -65,7 +67,7 @@ const Products = () => {
 
     const removeProduct = async (id) => {
         try {
-            const response = await axios.delete(`http://localhost:5000/delete-product/${id}`, {
+            const response = await axios.delete(`${ADDRESS}${PORT}/delete-product/${id}`, {
                 headers: {
                     'X-API-KEY': API_KEY
                 },

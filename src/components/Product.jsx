@@ -12,7 +12,9 @@ const Product = () => {
 
     const { id } = useParams();
 
-    const API_KEY = 'zA.w>5rtF?MscTJm,owF';
+    const ADDRESS = import.meta.env.VITE_ADDRESS;
+    const PORT = import.meta.env.VITE_PORT;
+    const API_KEY = import.meta.env.VITE_API_KEY;
 
     useEffect(() => {
         fetchProduct();
@@ -21,7 +23,7 @@ const Product = () => {
     const fetchProduct = async () => {
         try 
         {
-            const response = await axios.get(`http://localhost:5000/product/${id}`, {
+            const response = await axios.get(`${ADDRESS}${PORT}/product/${id}`, {
                 headers: {
                     'X-API-KEY': API_KEY
                 },
@@ -43,7 +45,7 @@ const Product = () => {
     const editProduct = async () => {
         try 
         {
-            const response = await axios.patch(`http://localhost:5000/edit-product/${id}`, {
+            const response = await axios.patch(`${ADDRESS}${PORT}/edit-product/${id}`, {
                 product: productName
             }, {
                 headers: {

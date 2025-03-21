@@ -5,7 +5,7 @@ import swaggerJsDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({path: "../.env"});
 
 const app = express();
 const ADDRESS = process.env.ADDRESS;
@@ -80,6 +80,7 @@ app.use(SWAGGER, swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  *       - name: X-API-KEY
  *         in: header
  *         required: true
+ *         description: Klucz API
  *         schema:
  *           type: string
  *     responses:
@@ -101,11 +102,13 @@ app.get("/products", checkApiKey, async (req, res) =>
  *       - name: id
  *         in: path
  *         required: true
+ *         description: ID produktu
  *         schema:
  *           type: integer
  *       - name: X-API-KEY
  *         in: header
  *         required: true
+ *         description: Klucz API
  *         schema:
  *           type: string
  *     responses:
@@ -131,6 +134,7 @@ app.get("/product/:id", checkApiKey, async (req, res) =>
  *     summary: Dodaj nowy produkt
  *     requestBody:
  *       required: true
+ *       description: Nazwa produktu
  *       content:
  *         application/json:
  *           schema:
@@ -138,11 +142,11 @@ app.get("/product/:id", checkApiKey, async (req, res) =>
  *             properties:
  *               product:
  *                 type: string
- *                 description: Nazwa produktu
  *     parameters:
  *       - name: X-API-KEY
  *         in: header
  *         required: true
+ *         description: Klucz API
  *         schema:
  *           type: string
  *     responses:
@@ -180,11 +184,13 @@ app.post("/add-product", checkApiKey, async (req, res) =>
  *       - name: id
  *         in: path
  *         required: true
+ *         description: ID produktu
  *         schema:
  *           type: integer
  *       - name: X-API-KEY
  *         in: header
  *         required: true
+ *         description: Klucz API
  *         schema:
  *           type: string
  *     responses:
@@ -212,6 +218,7 @@ app.delete("/delete-product/:id", checkApiKey, async (req, res) =>
  *     summary: Edytuj produkt
  *     requestBody:
  *       required: true
+ *       description: Nazwa produktu
  *       content:
  *         application/json:
  *           schema:
@@ -219,16 +226,17 @@ app.delete("/delete-product/:id", checkApiKey, async (req, res) =>
  *             properties:
  *               product:
  *                 type: string
- *                 description: Nazwa produktu
  *     parameters:
  *       - name: id
  *         in: path
  *         required: true
+ *         description: ID produktu
  *         schema:
  *           type: integer
  *       - name: X-API-KEY
  *         in: header
  *         required: true
+ *         description: Klucz API
  *         schema:
  *           type: string
  *     responses:
