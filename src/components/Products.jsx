@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'
+import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated'
+import useAuthHeader from 'react-auth-kit/hooks/useAuthHeader'
 import axios from 'axios';
 
 import './Products.css';
 
 const Products = () => {
+    const isAuthenticated = useIsAuthenticated();
+    const authHeader = useAuthHeader();
     const navigate = useNavigate();
+
+    useEffect(() => 
+    {
+        if (!isAuthenticated) 
+        {
+            navigate('/login');
+        }
+        else
+        {
+            fetchProducts();
+        }
+    }, [isAuthenticated, navigate]);
 
     const [products, setProducts] = useState("");
     const [loading, setLoading] = useState(true);
@@ -13,18 +29,13 @@ const Products = () => {
 
     const ADDRESS = import.meta.env.VITE_ADDRESS;
     const PORT = import.meta.env.VITE_PORT;
-    const API_KEY = import.meta.env.VITE_API_KEY;
-
-    useEffect(() => {
-        fetchProducts();
-    }, []);
 
     const fetchProducts = async () => {
         try 
         {
             const response = await axios.get(`${ADDRESS}${PORT}/products`, {
                 headers: {
-                    'X-API-KEY': API_KEY
+                    'Authorization': authHeader
                 },
                 withCredentials: true
             });
@@ -48,7 +59,7 @@ const Products = () => {
                 product: product
             }, {
                 headers: {
-                    'X-API-KEY': API_KEY
+                    'Authorization': authHeader
                 },
                 withCredentials: true
             });
@@ -69,7 +80,7 @@ const Products = () => {
         try {
             const response = await axios.delete(`${ADDRESS}${PORT}/delete-product/${id}`, {
                 headers: {
-                    'X-API-KEY': API_KEY
+                    'Authorization': authHeader
                 },
                 withCredentials: true
             });

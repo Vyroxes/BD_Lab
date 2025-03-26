@@ -1,0 +1,107 @@
+.container-login {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: large;
+    background: url('../assets/login_background.jpg') no-repeat center center/cover;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.container-login h1 {
+    font-size: 2.5em;
+    line-height: 1;
+    margin: 0;
+    margin-bottom: 20px;
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: black;
+}
+
+.container-login label {
+    font-size: large;
+}
+
+.container-login input[type="text"],
+.container-login input[type="email"],
+.container-login input[type="password"] {
+    width: 280px;
+    margin-left: 10px;
+}
+
+.container-login input[type="checkbox"] {
+    margin-left: 10px;
+}
+
+.container-login2 {
+    width: 380px;
+    padding: 2rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 30px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.login-group {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.container-login2:has(.login-error-text) .login-button-show-password {
+    top: 39.5%;
+}
+
+.login-button-show-password {
+    padding: 0.4rem 0.4rem 0rem 0.4rem;
+    background: transparent;
+    border: none !important;
+    border-radius: 20px;
+    padding: 3px 3px 0px 3px;
+    position: absolute;
+    right: 15%;
+    top: 44%;
+    color: #b6b6b6;
+    transition: color 0.2s ease;
+}
+
+.login-button-show-password:disabled:hover {
+    background: transparent;
+    color: #b6b6b6;
+    transition: color 0.2s ease;
+}
+
+.login-button-show-password:hover {
+    background: transparent;
+    color: #ffffff;
+    transition: color 0.2s ease;
+}
+
+.login-error-text {
+    color: rgb(255, 95, 95);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.login-actions,
+.login-error-text,
+.login-controls {
+    margin-bottom: 10px;
+}
+
+.login-actions,
+.login-socials,
+.login-register {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-socials button,
+.login-register button {
+    margin-left: 10px;
+}
