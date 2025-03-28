@@ -105,3 +105,18 @@
 .login-register button {
     margin-left: 10px;
 }
+
+@media (max-aspect-ratio: 9/10) {
+    .container-login {
+        overflow: hidden;
+    }
+
+    .container-login h1 {
+        -webkit-text-stroke-width: 1px;
+        -webkit-text-stroke-color: black;
+    }
+
+    .login-button-show-password {
+        right: 11%;
+    }
+}

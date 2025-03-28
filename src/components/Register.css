@@ -40,3 +40,9 @@
     overflow: hidden;
     margin-bottom: 10px;
 }
+
+@media (max-aspect-ratio: 9/10) {
+    .register-button-show-password {
+        right: 11%;
+    }
+}

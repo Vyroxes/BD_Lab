@@ -31,9 +31,6 @@ const Register = () => {
     const number = /\d/;
     const specialchar = /[!@#$%^&*(),.?":{}|<>]/;
 
-    const ADDRESS = import.meta.env.VITE_ADDRESS;
-    const PORT = import.meta.env.VITE_PORT;
-
     useEffect(() => 
     {
         if (isAuthenticated) 
@@ -44,7 +41,7 @@ const Register = () => {
 
     const onSubmit = async () => {
         try {
-            const response = await axios.post(`${ADDRESS}${PORT}/register`, {
+            const response = await axios.post(`/api/register`, {
                 username,
                 email,
                 password,

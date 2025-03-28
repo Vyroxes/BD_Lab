@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'
-import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated'
-import useAuthHeader from 'react-auth-kit/hooks/useAuthHeader'
+import { useNavigate } from 'react-router-dom';
+import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated';
+import useAuthHeader from 'react-auth-kit/hooks/useAuthHeader';
 import axios from 'axios';
 
 import './Products.css';
@@ -27,13 +27,10 @@ const Products = () => {
     const [loading, setLoading] = useState(true);
     const [product, setProduct] = useState("");
 
-    const ADDRESS = import.meta.env.VITE_ADDRESS;
-    const PORT = import.meta.env.VITE_PORT;
-
     const fetchProducts = async () => {
         try 
         {
-            const response = await axios.get(`${ADDRESS}${PORT}/products`, {
+            const response = await axios.get(`/api/products`, {
                 headers: {
                     'Authorization': authHeader
                 },
@@ -55,7 +52,7 @@ const Products = () => {
     const addProduct = async () => {
         try 
         {
-            const response = await axios.post(`${ADDRESS}${PORT}/add-product`, {
+            const response = await axios.post(`/api/add-product`, {
                 product: product
             }, {
                 headers: {
@@ -78,7 +75,7 @@ const Products = () => {
 
     const removeProduct = async (id) => {
         try {
-            const response = await axios.delete(`${ADDRESS}${PORT}/delete-product/${id}`, {
+            const response = await axios.delete(`/api/delete-product/${id}`, {
                 headers: {
                     'Authorization': authHeader
                 },
@@ -133,6 +130,7 @@ const Products = () => {
                         onChange={(e) => setProduct(e.target.value)}
                         required
                         minLength={3}
+                        maxLength={20}
                         >
                     </input>
                 </label>

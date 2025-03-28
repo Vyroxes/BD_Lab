@@ -27,9 +27,6 @@ const Login = () => {
     const number = /\d/;
     const specialchar = /[!@#$%^&*(),.?":{}|<>]/;
 
-    const ADDRESS = import.meta.env.VITE_ADDRESS;
-    const PORT = import.meta.env.VITE_PORT;
-
     useEffect(() => 
     {
         if (isAuthenticated) 
@@ -40,7 +37,7 @@ const Login = () => {
 
     const onSubmit = async () => {
         try {
-            const response = await axios.post(`${ADDRESS}${PORT}/login`, {
+            const response = await axios.post(`/api/login`, {
                 usernameOrEmail,
                 password,
                 remember,

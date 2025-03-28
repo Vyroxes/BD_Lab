@@ -29,8 +29,8 @@ const App = () => {
         <div className='app'>
           {location.pathname !== '/login' && location.pathname !== '/register' && (<Header/>)}
           <Routes>
-          <Route path="/login" element={<Login/>}/>
-          <Route path="/register" element={<Register/>}/>
+            <Route path="/login" element={<Login/>}/>
+            <Route path="/register" element={<Register/>}/>
             <Route path="/login" element={<Login/>}/>
             <Route path="/register" element={<Register/>}/>
             <Route path="/home" element={<Home/>}/>

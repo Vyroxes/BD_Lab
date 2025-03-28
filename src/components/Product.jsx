@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom'
-import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated'
-import useAuthHeader from 'react-auth-kit/hooks/useAuthHeader'
+import { useNavigate, useParams } from 'react-router-dom';
+import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated';
+import useAuthHeader from 'react-auth-kit/hooks/useAuthHeader';
 import axios from 'axios';
 
 import './Product.css';
@@ -28,13 +28,10 @@ const Product = () => {
 
     const { id } = useParams();
 
-    const ADDRESS = import.meta.env.VITE_ADDRESS;
-    const PORT = import.meta.env.VITE_PORT;
-
     const fetchProduct = async () => {
         try 
         {
-            const response = await axios.get(`${ADDRESS}${PORT}/product/${id}`, {
+            const response = await axios.get(`/api/product/${id}`, {
                 headers: {
                     'Authorization': authHeader
                 },
@@ -56,7 +53,7 @@ const Product = () => {
     const editProduct = async () => {
         try 
         {
-            const response = await axios.patch(`${ADDRESS}${PORT}/edit-product/${id}`, {
+            const response = await axios.patch(`/api/edit-product/${id}`, {
                 product: productName
             }, {
                 headers: {
