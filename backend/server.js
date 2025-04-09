@@ -21,7 +21,7 @@ const REFRESH_TOKEN_KEY = process.env.REFRESH_TOKEN_KEY;
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10,
+    max: 100,
     message: { error: "Zbyt wiele żądań, spróbuj ponownie później." }
 });
 
@@ -235,17 +235,17 @@ app.post("/api/register", async (req, res) => {
             return res.status(400).json({ error: "Brak wszystkich danych." });
         }
 
-        if (username.length < 5 || username.length > 20 || username.includes(" ")) {
-            return res.status(400).json({ error: "Niepoprawna nazwa użytkownika." });
+        if (username.length < 5 || username.length > 20 || username.includes(" ") || username.includes(" ") || /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(username)) {
+            return res.status(400).json({ error: "Niepoprawna nazwa użytkownika. Długość 5-20 znaków, bez polskich znaków, bez spacji." });
         }
 
         if (email.length < 6 || email.length > 320 || !email.includes("@") || !email.includes(".") || email.includes(" ")) {
-            return res.status(400).json({ error: "Niepoprawny email." });
+            return res.status(400).json({ error: "Niepoprawny email. Wymagany znak @, domena i kropka. Długość 6-320 znaków, bez polskich znaków, bez spacji." });
         }
 
-        const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,20}$/;
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>])(?!.*[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]).{8,20}$/;
         if (!passwordRegex.test(password) || password.includes(" ")) {
-            return res.status(400).json({ error: "Niepoprawne hasło." });
+            return res.status(400).json({ error: "Niepoprawne hasło. Wymagana co najmniej jedna mała litera, jedna wielka litera, cyfra oraz znak specjalny. Długość 8-20 znaków, bez polskich znaków, bez spacji." });
         }
 
         const existingUserByUsername = await User.findOne({ where: { username } });
