@@ -1,45 +1,32 @@
-import React, { useState } from "react";
+
+import React from 'react';
 import { CiLogout } from "react-icons/ci";
-import useSignOut from 'react-auth-kit/hooks/useSignOut';
-import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated';
-import useAuthHeader from 'react-auth-kit/hooks/useAuthHeader';
-import useAuthUser from 'react-auth-kit/hooks/useAuthUser';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { isAuthenticated, getCookie, clearTokens, authAxios } from '../utils/Auth';
 
 import './Header.css';
 
 const Header = () => {
-    const isAuthenticated = useIsAuthenticated();
-    let authHeader = useAuthHeader();
-    const signOut = useSignOut();
-    const authUser = useAuthUser();
+    const username = isAuthenticated() ? getCookie("username") : "";
     const navigate = useNavigate();
-    let username = "";
 
-    if(isAuthenticated)
-    {
-        username = authUser.name;
-    }
-    
     const handleLogout = async () => {
         try {
-            const response = await axios.get(`/api/logout`, {
-                headers: {
-                    'Authorization': authHeader
-                },
-                withCredentials: true
+            const response = await authAxios.post("/api/logout", {
+                refresh_token: getCookie("refresh_token")
             });
+            
+            await authAxios.get("/api/clear-session");
 
-            if (response.status == 200)
-            {
-                signOut();
+            if (response.status === 200) {
+                console.log("Wylogowano pomyślnie");
+                clearTokens();
                 navigate('/login');
             }
         } catch (error) {
-            console.error("Wystąpił błąd podczas wylogowywania: ", error);
+            console.error("Błąd podczas wylogowania: ", error);
         }
-    }
+    };
 
     return (
         <header className="header">
@@ -51,9 +38,14 @@ const Header = () => {
                     <li className={location.pathname === "/products" ? "active" : ""}>
                         <a href="/products">PRODUKTY</a>
                     </li>
-                    <li>
-                        <a onClick={handleLogout}>{username}&nbsp;<CiLogout className="logout-icon"/></a>
-                    </li>
+                    {isAuthenticated() && (
+                        <li onClick={(e) => {
+                            e.preventDefault();
+                            handleLogout();
+                        }}>
+                            <a>{username}&nbsp;<CiLogout className="logout-icon"/></a>
+                        </li>
+                    )}
                 </ul>
             </nav>
         </header>

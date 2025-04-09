@@ -1,7 +1,6 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
-import createStore from 'react-auth-kit/createStore';
-import AuthProvider from 'react-auth-kit';
+import { isAuthenticated } from './utils/Auth';
 
 import './App.css';
 
@@ -13,35 +12,39 @@ const Product = lazy(() => import('./components/Product'));
 const Header = lazy(() => import('./components/Header'));
 const Footer = lazy(() => import('./components/Footer'));
 
-const store = createStore({
-  authName:'access_token',
-  authType:'cookie',
-  cookieDomain: window.location.hostname,
-  cookieSecure: true,
-});
-
 const App = () => {
   const location = useLocation();
 
+  const [authState, setAuthState] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const result = await isAuthenticated();
+      setAuthState(result);
+    };
+
+    checkAuth();
+  }, [location]);
+
+  if (authState === null) {
+    return null;
+  }
+
   return (
-    <AuthProvider store={store}>
-      <Suspense>
-        <div className='app'>
-          {location.pathname !== '/login' && location.pathname !== '/register' && (<Header/>)}
-          <Routes>
-            <Route path="/login" element={<Login/>}/>
-            <Route path="/register" element={<Register/>}/>
-            <Route path="/login" element={<Login/>}/>
-            <Route path="/register" element={<Register/>}/>
-            <Route path="/home" element={<Home/>}/>
-            <Route path="/products" element={<Products/>}/>
-            <Route path="/product/:id" element={<Product/>}/>
-            <Route path="*" element={<Navigate to="/home"/>}/>
-          </Routes>
-          {location.pathname !== '/login' && location.pathname !== '/register' && (<Footer/>)}
-        </div>
-      </Suspense>
-    </AuthProvider>
+    <Suspense>
+      <div className='app'>
+        {location.pathname !== '/login' && location.pathname !== '/register' && (<Header/>)}
+        <Routes>
+          <Route path="/login" element={<Login onLogin={() => setAuthState(true)}/>}/>
+          <Route path="/register" element={<Register onLogin={() => setAuthState(true)}/>}/>
+          <Route path="/home" element={authState ? <Home /> : <Navigate to="/login" />} />
+          <Route path="/products" element={authState ? <Products/> : <Navigate to="/login" />}/>
+          <Route path="/product/:id" element={authState ? <Product/> : <Navigate to="/login" />}/>
+          <Route path="*" element={<Navigate to="/home"/>}/>
+        </Routes>
+        {location.pathname !== '/login' && location.pathname !== '/register' && (<Footer/>)}
+      </div>
+    </Suspense>
   );
 };
 

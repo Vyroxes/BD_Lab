@@ -1,27 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated';
-import useAuthHeader from 'react-auth-kit/hooks/useAuthHeader';
-import axios from 'axios';
+import { authAxios } from '../utils/Auth';
 
 import './Products.css';
 
 const Products = () => {
-    const isAuthenticated = useIsAuthenticated();
-    const authHeader = useAuthHeader();
     const navigate = useNavigate();
 
-    useEffect(() => 
-    {
-        if (!isAuthenticated) 
-        {
-            navigate('/login');
-        }
-        else
-        {
-            fetchProducts();
-        }
-    }, [isAuthenticated, navigate]);
+    useEffect(() => {
+        fetchProducts();
+    }, []);
 
     const [products, setProducts] = useState("");
     const [loading, setLoading] = useState(true);
@@ -30,12 +18,7 @@ const Products = () => {
     const fetchProducts = async () => {
         try 
         {
-            const response = await axios.get(`/api/products`, {
-                headers: {
-                    'Authorization': authHeader
-                },
-                withCredentials: true
-            });
+            const response = await authAxios.get(`/api/products`);
 
             if (response.status == 200)
             {
@@ -52,13 +35,8 @@ const Products = () => {
     const addProduct = async () => {
         try 
         {
-            const response = await axios.post(`/api/add-product`, {
+            const response = await authAxios.post(`/api/add-product`, {
                 product: product
-            }, {
-                headers: {
-                    'Authorization': authHeader
-                },
-                withCredentials: true
             });
 
             if (response.status == 201)
@@ -75,12 +53,7 @@ const Products = () => {
 
     const removeProduct = async (id) => {
         try {
-            const response = await axios.delete(`/api/delete-product/${id}`, {
-                headers: {
-                    'Authorization': authHeader
-                },
-                withCredentials: true
-            });
+            const response = await authAxios.delete(`/api/delete-product/${id}`);
             
             if (response.status === 200)
             {

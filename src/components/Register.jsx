@@ -1,16 +1,14 @@
 import React, { useState, useEffect} from "react";
-import useSignIn from 'react-auth-kit/hooks/useSignIn';
 import { Eye, EyeOff } from "lucide-react";
 import { FaUser, FaLock } from "react-icons/fa";
 import { MdAlternateEmail } from "react-icons/md";
-import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated'
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { isAuthenticated, authAxios, setTokens } from '../utils/Auth';
 
 import './Login.css';
 import './Register.css';
 
-const Register = () => {
+const Register = ( { onLogin } ) => {
     const [showPassword, setShowPassword] = useState(false);
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
@@ -19,9 +17,7 @@ const Register = () => {
     const [dataError, setDataError] = useState("");
     const [loginError, setLoginError] = useState("");
 
-    const signIn = useSignIn();
     const navigate = useNavigate();
-    const isAuthenticated = useIsAuthenticated();
 
     const isDisabled = dataError !== "" || username.trim() === "" || email.trim() === ""  || password.trim() === "" || password2.trim() === "";
     const isDisabled2 = password.trim() === "";
@@ -31,39 +27,35 @@ const Register = () => {
     const number = /\d/;
     const specialchar = /[!@#$%^&*(),.?":{}|<>]/;
 
-    useEffect(() => 
-    {
-        if (isAuthenticated) 
-        {
-            navigate('/home');
-        }
-    }, [isAuthenticated, navigate]);
+    useEffect(() => {
+        const checkAuth = async () => {
+            const result = await isAuthenticated();
+            if (result) {
+                navigate("/home");
+            }
+        };
+        checkAuth();
+    }, [navigate]);
 
     const onSubmit = async () => {
         try {
-            const response = await axios.post(`/api/register`, {
+            const response = await authAxios.post(`/api/register`, {
                 username,
                 email,
                 password,
-            }, {
-                withCredentials: true
             });
 
-            if (response.status == 201)
-            {
-                console.log(response.data.message);
-                if(signIn({
-                    auth: {
-                        token: response.data.access_token,
-                        type: 'Bearer'
-                    },
-                    userState: {
-                        name: response.data.username,
-                    }
-                }))
-                {
-                    navigate('/home');
-                }
+            if (response.status === 201) {
+                setTokens(
+                    response.data.access_token,
+                    response.data.refresh_token,
+                    response.data.expire_time,
+                    response.data.refresh_expire_time,
+                    response.data.username,
+                    response.data.email
+                );
+                onLogin();
+                navigate('/home');
             }
         } catch (error) {
             console.error("Błąd podczas rejestrowania: ", error);

@@ -1,27 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated';
-import useAuthHeader from 'react-auth-kit/hooks/useAuthHeader';
-import axios from 'axios';
+import { authAxios } from '../utils/Auth';
 
 import './Product.css';
 
 const Product = () => {
-    const isAuthenticated = useIsAuthenticated();
-    const authHeader = useAuthHeader();
     const navigate = useNavigate();
 
-    useEffect(() => 
-    {
-        if (!isAuthenticated) 
-        {
-            navigate('/login');
-        }
-        else
-        {
-            fetchProduct();
-        }
-    }, [isAuthenticated, navigate]);
+    useEffect(() => {
+        fetchProduct();
+    }, []);
 
     const [loading, setLoading] = useState(true);
     const [productName, setProductName] = useState("");
@@ -31,12 +19,7 @@ const Product = () => {
     const fetchProduct = async () => {
         try 
         {
-            const response = await axios.get(`/api/product/${id}`, {
-                headers: {
-                    'Authorization': authHeader
-                },
-                withCredentials: true
-            });
+            const response = await authAxios.get(`/api/product/${id}`);
 
             if (response.status == 200)
             {
@@ -53,13 +36,8 @@ const Product = () => {
     const editProduct = async () => {
         try 
         {
-            const response = await axios.patch(`/api/edit-product/${id}`, {
+            const response = await authAxios.patch(`/api/edit-product/${id}`, {
                 product: productName
-            }, {
-                headers: {
-                    'Authorization': authHeader
-                },
-                withCredentials: true
             });
 
             if (response.status == 200)

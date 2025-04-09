@@ -1,14 +1,12 @@
 import React, { useState, useEffect} from "react";
-import useSignIn from 'react-auth-kit/hooks/useSignIn';
 import { Eye, EyeOff } from "lucide-react";
 import { FaUser, FaLock } from "react-icons/fa";
-import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated'
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { isAuthenticated, authAxios, setTokens } from '../utils/Auth';
 
 import './Login.css';
 
-const Login = () => {
+const Login = ( { onLogin } ) => {
     const [showPassword, setShowPassword] = useState(false);
     const [usernameOrEmail, setUsernameOrEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -16,9 +14,7 @@ const Login = () => {
     const [dataError, setDataError] = useState("");
     const [loginError, setLoginError] = useState("");
 
-    const signIn = useSignIn();
     const navigate = useNavigate();
-    const isAuthenticated = useIsAuthenticated();
 
     const isDisabled = usernameOrEmail.trim() === "" || password.trim() === "";
     const isDisabled2 = password.trim() === "";
@@ -27,38 +23,35 @@ const Login = () => {
     const number = /\d/;
     const specialchar = /[!@#$%^&*(),.?":{}|<>]/;
 
-    useEffect(() => 
-    {
-        if (isAuthenticated) 
-        {
-            navigate('/home');
-        }
-    }, [isAuthenticated, navigate]);
+    useEffect(() => {
+        const checkAuth = async () => {
+            const result = await isAuthenticated();
+            if (result) {
+                navigate("/home");
+            }
+        };
+        checkAuth();
+    }, [navigate]);
 
     const onSubmit = async () => {
         try {
-            const response = await axios.post(`/api/login`, {
+            const response = await authAxios.post(`/api/login`, {
                 usernameOrEmail,
                 password,
                 remember,
-            }, {
-                withCredentials: true
             });
 
-            if (response.status == 200)
-            {
-                if(signIn({
-                    auth: {
-                        token: response.data.access_token,
-                        type: 'Bearer'
-                    },
-                    userState: {
-                        name: response.data.username,
-                    }
-                }))
-                {
-                    navigate('/home');
-                }
+            if (response.status === 200) {
+                console.log(response.data);
+                setTokens(
+                    response.data.access_token,
+                    response.data.refresh_token,
+                    response.data.expire_time,
+                    response.data.refresh_expire_time,
+                    response.data.username,
+                    response.data.email);
+                onLogin();
+                navigate('/home');
             }
         } catch (error) {
             console.error("Błąd podczas logowania: ", error);

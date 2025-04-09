@@ -15,12 +15,13 @@ const app = express();
 const ADDRESS = process.env.ADDRESS;
 const PORT = process.env.PORT;
 const SWAGGER = process.env.SWAGGER;
-const SECRET_KEY = process.env.SECRET_KEY;
+const ACCESS_TOKEN_KEY = process.env.ACCESS_TOKEN_KEY;
+const REFRESH_TOKEN_KEY = process.env.REFRESH_TOKEN_KEY;
 // const ORIGIN = process.env.ORIGIN;
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 10,
     message: { error: "Zbyt wiele żądań, spróbuj ponownie później." }
 });
 
@@ -39,13 +40,13 @@ app.use(
                     callback(new Error('Nieautoryzowany dostęp z tego źródła.'));
                 }
             },
-            methods: ["GET", "POST", "PATCH", "DELETE"],
+            methods: ["OPTIONS", "GET", "POST", "PATCH", "DELETE"],
             allowedHeaders: ["Content-Type", "Authorization"]
     })
 );
 
 app.use((req, res, next) => {
-    const allowedMethods = ["GET", "POST", "PATCH", "DELETE"];
+    const allowedMethods = ["OPTIONS", "GET", "POST", "PATCH", "DELETE"];
     if (!allowedMethods.includes(req.method)) {
         return res.status(405).json({ error: "Metoda HTTP niedozwolona." });
     }
@@ -86,7 +87,7 @@ const User = sequelize.define("User", {
     },
     password: {
         type: DataTypes.STRING,
-        validate: { len: [8, 20] },
+        validate: { len: [40, 80] },
         allowNull: false
     }
 });
@@ -119,7 +120,6 @@ User.belongsToMany(Product, { through: UserProduct });
 Product.belongsToMany(User, { through: UserProduct });
 
 sequelize.sync()
-    .then(() => Blacklist.sync())
     .then(() => {
         console.log("Baza danych zaktualizowana");
     })
@@ -130,26 +130,30 @@ sequelize.sync()
 const jwtAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ error: "Niepoprawny format tokenu." });
+    if (!authHeader) {
+        return res.status(401).json({ error: "Brak nagłówka Authorization." });
+    }
+
+    if (!authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Niepoprawny format nagłówka Authorization." });
     }
 
     const token = authHeader.split(" ")[1];
     if (!token) {
-        return res.status(401).json({ error: "Brak tokenu autoryzacyjnego." });
+        return res.status(401).json({ error: "Brak lub nieprawidłowy format access tokenu." });
     }
 
     try {
         const blacklistedToken = await Blacklist.findOne({ where: { token } });
         if (blacklistedToken) {
-            return res.status(401).json({ error: "Token został unieważniony." });
+            return res.status(401).json({ error: "Access token został unieważniony." });
         }
 
-        const decoded = jwt.verify(token, SECRET_KEY);
+        const decoded = jwt.verify(token, ACCESS_TOKEN_KEY);
         req.user = decoded;
         next();
     } catch (err) {
-        return res.status(401).json({ error: "Niepoprawny token." });
+        return res.status(401).json({ error: "Niepoprawny access token." });
     }
 };
 
@@ -224,40 +228,50 @@ app.use(SWAGGER, swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  */
 
 app.post("/api/register", async (req, res) => {
-    const { username, email, password } = req.body;
+    try {
+        const { username, email, password } = req.body;
 
-    if (!username || !email || !password) {
-        return res.status(400).json({ error: "Brak wszystkich danych." });
+        if (!username || !email || !password) {
+            return res.status(400).json({ error: "Brak wszystkich danych." });
+        }
+
+        if (username.length < 5 || username.length > 20 || username.includes(" ")) {
+            return res.status(400).json({ error: "Niepoprawna nazwa użytkownika." });
+        }
+
+        if (email.length < 6 || email.length > 320 || !email.includes("@") || !email.includes(".") || email.includes(" ")) {
+            return res.status(400).json({ error: "Niepoprawny email." });
+        }
+
+        const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,20}$/;
+        if (!passwordRegex.test(password) || password.includes(" ")) {
+            return res.status(400).json({ error: "Niepoprawne hasło." });
+        }
+
+        const existingUserByUsername = await User.findOne({ where: { username } });
+        if (existingUserByUsername) {
+            return res.status(409).json({ error: "Nazwa użytkownika zajęta." });
+        }
+
+        const existingUserByEmail = await User.findOne({ where: { email } });
+        if (existingUserByEmail) {
+            return res.status(409).json({ error: "Email zajęty." });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const newUser = await User.create({ username, email, password: hashedPassword });
+
+        const access_token_expiresIn = "00:00:00:30";
+        const refresh_token_expiresIn = "00:01:00:00";
+        const access_token = jwt.sign({ id: newUser.id, username: newUser.username }, ACCESS_TOKEN_KEY);
+        const refresh_token = jwt.sign({ id: newUser.id, username: newUser.username }, REFRESH_TOKEN_KEY);
+
+        res.status(201).json({ message: "Zarejestrowano pomyślnie.", username: newUser.username, email: newUser.email, access_token: access_token, refresh_token: refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString()});
+    } catch (error) {
+        res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
-
-    if (username.length < 5 || username.length > 20 || username.includes(" ")) {
-        return res.status(400).json({ error: "Niepoprawna nazwa użytkownika." });
-    }
-
-    if (email.length < 6 || email.length > 320 || !email.includes("@") || !email.includes(".") || email.includes(" ")) {
-        return res.status(400).json({ error: "Niepoprawny email." });
-    }
-
-    const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,20}$/;
-    if (!passwordRegex.test(password) || password.includes(" ")) {
-        return res.status(400).json({ error: "Niepoprawne hasło." });
-    }
-
-    const existingUserByUsername = await User.findOne({ where: { username } });
-    if (existingUserByUsername) {
-        return res.status(409).json({ error: "Nazwa użytkownika zajęta." });
-    }
-
-    const existingUserByEmail = await User.findOne({ where: { email } });
-    if (existingUserByEmail) {
-        return res.status(409).json({ error: "Email zajęty." });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = await User.create({ username, email, password: hashedPassword });
-    res.status(201).json({ message: "Zarejestrowano pomyślnie.", user: newUser });
 });
 
 /**
@@ -295,52 +309,142 @@ app.post("/api/register", async (req, res) => {
 */
 
 app.post("/api/login", async (req, res) => {
-    const { usernameOrEmail, password, remember } = req.body;
+    try {
+        const { usernameOrEmail, password, remember } = req.body;
 
-    if (!usernameOrEmail || !password) {
-        return res.status(400).json({ error: "Brak wszystkich danych." });
+        if (!usernameOrEmail || !password) {
+            return res.status(400).json({ error: "Brak wszystkich danych." });
+        }
+
+        const user = await User.findOne({
+            where: { [Op.or]: [{ username: usernameOrEmail }, { email: usernameOrEmail }] }
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: "Użytkownik nie znaleziony." });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: "Nieprawidłowe dane logowania." });
+        }
+
+        const access_token_expiresIn = "00:00:00:10";
+        const refresh_token_expiresIn = remember ? "07:00:00:00" : "00:01:00:00";
+        const access_token = jwt.sign({ id: user.id, username: user.username }, ACCESS_TOKEN_KEY);
+        const refresh_token = jwt.sign({ id: user.id, username: user.username }, REFRESH_TOKEN_KEY);
+
+        res.status(200).json({ message: "Zalogowano pomyślnie.", username: user.username, email: user.email, access_token: access_token, refresh_token: refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString()});
+    } catch (error) {
+        res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
-
-    const user = await User.findOne({
-        where: { [Op.or]: [{ username: usernameOrEmail }, { email: usernameOrEmail }] }
-    });
-
-    if (!user) {
-        return res.status(404).json({ error: "Użytkownik nie znaleziony." });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-        return res.status(401).json({ error: "Nieprawidłowe dane logowania." });
-    }
-
-    const expiresIn = remember ? "7d" : "5s";
-    const token = jwt.sign({ id: user.id, username: user.username }, SECRET_KEY, { expiresIn });
-
-    res.status(200).json({ message: "Zalogowano pomyślnie.", access_token: token, username: user.username });
 });
 
 /**
  * @swagger
  * /api/logout:
- *   get:
+ *   post:
  *     summary: Wylogowanie użytkownika
  *     security:
  *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Wylogowano pomyślnie
+ *       400:
+ *         description: Brak refresh tokenu
  *       500:
  *         description: Wystąpił błąd serwera
  */
-app.get("/api/logout", jwtAuth, async (req, res) =>
-{
-    try {
-        const token = req.headers.authorization.split(" ")[1];
 
-        await Blacklist.create({ token });
+app.post("/api/logout", jwtAuth, async (req, res) => {
+    try {
+        const { refresh_token } = req.body;
+        if (!refresh_token) {
+            return res.status(400).json({ error: "Brak refresh tokenu." });
+        }
+        const access_token = req.headers.authorization.split(" ")[1];
+
+        await Blacklist.create({ token: access_token });
+        await Blacklist.create({ token: refresh_token });
 
         res.status(200).json({ message: "Wylogowano pomyślnie." });
+    } catch (error) {
+        res.status(500).json({ error: "Wystąpił błąd serwera." });
+    }
+});
+
+/**
+ * @swagger
+ * /api/refresh:
+ *   post:
+ *     summary: Odświeżenie tokenów
+ *     requestBody:
+ *       required: true
+ *       description: Refresh token
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refresh_token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Tokeny odświeżone pomyślnie
+ *       400:
+ *         description: Brak refresh tokenu
+ *       401:
+ *         description: Refresh token został unieważniony
+ *       404:
+ *         description: Użytkownik nie znaleziony
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.post("/api/refresh", async (req, res) => {
+    try {
+        const { refresh_token } = req.body;
+        if (!refresh_token) {
+            return res.status(400).json({ error: "Brak refresh tokenu." });
+        }
+        console.log(refresh_token);
+        const blacklistedRefreshToken = await Blacklist.findOne({ where: { token: refresh_token } });
+        if (blacklistedRefreshToken) {
+            return res.status(401).json({ error: "Refresh token został unieważniony." });
+        }
+        const refreshTokenDecoded = jwt.verify(refresh_token, REFRESH_TOKEN_KEY);
+        const user = await User.findByPk(refreshTokenDecoded.id);
+        if (!user) {
+            return res.status(404).json({ error: "Użytkownik nie znaleziony." });
+        }
+
+        const access_token_expiresIn = "00:00:10:00";
+        const refresh_token_expiresIn = "00:01:00:00";
+        const access_token = jwt.sign({ id: user.id, username: user.username }, ACCESS_TOKEN_KEY);
+        const new_refresh_token = jwt.sign({ id: user.id, username: user.username }, REFRESH_TOKEN_KEY);
+        
+        res.status(200).json({ message: "Odświeżono tokeny.", username: user.username, email: user.email, access_token: access_token, refresh_token: new_refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString() });
+    } catch (error) {
+        res.status(500).json({ error: "Wystąpił błąd serwera." });
+    }
+});
+
+/**
+ * @swagger
+ * /api/clear-session:
+ *   get:
+ *     summary: Usunięcie ciasteczka sesji
+ *     responses:
+ *       200:
+ *         description: Ciasteczko sesji usunięte
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.get("/api/clear-session", async (req, res) => {
+    try {
+        res.clearCookie("session");
+        res.status(200).json({ message: "Ciasteczko 'session' usunięte." });
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
@@ -361,6 +465,7 @@ app.get("/api/logout", jwtAuth, async (req, res) =>
  *       500:
  *         description: Wystąpił błąd serwera
  */
+
 app.get("/api/products", jwtAuth, async (req, res) => 
 {
     try {
@@ -403,6 +508,7 @@ app.get("/api/products", jwtAuth, async (req, res) =>
  *       500:
  *         description: Wystąpił błąd serwera
  */
+
 app.get("/api/product/:id", jwtAuth, async (req, res) => {
     try {
         const user = await User.findByPk(req.user.id);
@@ -451,6 +557,7 @@ app.get("/api/product/:id", jwtAuth, async (req, res) => {
  *       500:
  *         description: Wystąpił błąd serwera
  */
+
 app.post("/api/add-product", jwtAuth, async (req, res) => {
     try {
         const { product } = req.body;
@@ -508,6 +615,7 @@ app.post("/api/add-product", jwtAuth, async (req, res) => {
  *       500:
  *         description: Wystąpił błąd serwera
  */
+
 app.delete("/api/delete-product/:id", jwtAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -535,7 +643,7 @@ app.delete("/api/delete-product/:id", jwtAuth, async (req, res) => {
             await product.destroy();
         }
 
-        res.status(200).json({ message: "Produkt usunięty z Twojej listy." });
+        res.status(200).json({ message: "Produkt usunięty." });
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
@@ -579,6 +687,7 @@ app.delete("/api/delete-product/:id", jwtAuth, async (req, res) => {
  *       500:
  *         description: Wystąpił błąd serwera
  */
+
 app.patch("/api/edit-product/:id", jwtAuth, async (req, res) => {
     try {
         const { product } = req.body;
