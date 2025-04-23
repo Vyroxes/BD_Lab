@@ -79,38 +79,40 @@ const Products = () => {
     return (
         <div className='products-container'>
             <h1>Produkty</h1>
-            {products.length == 0 && "Brak produktów w bazie danych"}
-            {products.length > 0 && (
-                <div className="products-list">
-                    {products.length > 0 && products.map(prod => (
-                        <div className="products-list-product" key={prod.id}>
-                            <a>{prod.product}</a>
-                            <div className='products-list-buttons'>
-                                <button onClick={() => navigate(`/product/${prod.id}`)}>Edytuj</button>
-                                <button onClick={() => removeProduct(prod.id)}>Usuń</button>
+            <div className='products-list-container'>
+                {products.length == 0 && "Brak produktów w bazie danych"}
+                {products.length > 0 && (
+                    <div className="products-list">
+                        {products.length > 0 && products.map(prod => (
+                            <div className="products-list-product" key={prod.id}>
+                                <a>{prod.product}</a>
+                                <div className='products-list-buttons'>
+                                    <button onClick={() => navigate(`/product/${prod.id}`)}>Edytuj</button>
+                                    <button onClick={() => removeProduct(prod.id)}>Usuń</button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-            <form className="product-add-form" onSubmit={handleSubmit}>
-                <label>Nazwa produktu:
-                    <input
-                        type="text"
-                        id="product"
-                        name="product"
-                        value={product}
-                        onChange={(e) => setProduct(e.target.value)}
-                        required
-                        minLength={3}
-                        maxLength={20}
-                        >
-                    </input>
-                </label>
-                <div>
-                    <button type="submit">Dodaj produkt</button>
-                </div>
-            </form>
+                        ))}
+                    </div>
+                )}
+                <form className="product-add-form" onSubmit={handleSubmit}>
+                    <label>Nazwa produktu:
+                        <input
+                            type="text"
+                            id="product"
+                            name="product"
+                            value={product}
+                            onChange={(e) => setProduct(e.target.value)}
+                            required
+                            minLength={3}
+                            maxLength={20}
+                            >
+                        </input>
+                    </label>
+                    <div>
+                        <button type="submit">Dodaj produkt</button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 };

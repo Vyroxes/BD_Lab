@@ -9,6 +9,8 @@ const Register = lazy(() => import('./components/Register'));
 const Home = lazy(() => import('./components/Home'));
 const Products = lazy(() => import('./components/Products'));
 const Product = lazy(() => import('./components/Product'));
+const Premium = lazy(() => import('./components/Premium'));
+const User = lazy(() => import('./components/User'));
 const Header = lazy(() => import('./components/Header'));
 const Footer = lazy(() => import('./components/Footer'));
 
@@ -40,6 +42,8 @@ const App = () => {
           <Route path="/home" element={authState ? <Home /> : <Navigate to="/login" />} />
           <Route path="/products" element={authState ? <Products/> : <Navigate to="/login" />}/>
           <Route path="/product/:id" element={authState ? <Product/> : <Navigate to="/login" />}/>
+          <Route path="/premium" element={authState ? <Premium/> : <Navigate to="/login" />}/>
+          <Route path="/users/:username" element={authState ? <User/> : <Navigate to="/login" />}/>
           <Route path="*" element={<Navigate to="/home"/>}/>
         </Routes>
         {location.pathname !== '/login' && location.pathname !== '/register' && (<Footer/>)}

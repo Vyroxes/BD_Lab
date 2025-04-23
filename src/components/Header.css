@@ -1,13 +1,17 @@
 .nav {
-    background: linear-gradient(to right, #5cc05c, #327632);
+    background: linear-gradient(135deg, #2c8c2c, #1a5a1a);
     color: white;
     display: flex;
     justify-content: center;
     align-items: stretch;
     gap: 2rem;
     padding: 0 1rem;
-    font-size: large;
-    height: 40px;
+    font-size: larger;
+    height: 50px;
+    flex-wrap: wrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    position: relative;
+    z-index: 100;
 }
 
 .nav ul {
@@ -16,10 +20,7 @@
     list-style: none;
     display: flex;
     align-items: center;
-}
-
-.nav li:last-child {
-    border-right: 2px solid black;
+    flex-wrap: wrap;
 }
 
 .nav li {
@@ -27,16 +28,33 @@
     display: flex;
     align-items: center;
     cursor: pointer;
-    border-left: 2px solid black;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.nav li:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 3px;
+    background-color: white;
+    transition: width 0.3s ease;
+}
+
+.nav li:hover:after,
+.nav li.active:after {
+    width: 80%;
 }
 
 .nav li.active {
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(0, 0, 0, 0.2);
 }
 
 .nav li:hover {
-    background-color: rgba(0, 0, 0, 0.5);
-    transition: background 0.2s ease;
+    background-color: rgba(0, 0, 0, 0.3);
 }
 
 .nav a {
@@ -45,9 +63,63 @@
     height: 100%;
     display: flex;
     align-items: center;
-    padding: 0 1rem;
+    padding: 0 1.2rem;
+    transition: transform 0.2s ease;
+}
+
+.nav a:hover {
+    transform: translateY(-2px);
+}
+
+.avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 10px;
+    vertical-align: middle;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    transition: all 0.3s ease;
+}
+
+.avatar:hover {
+    border-color: white;
+    transform: scale(1.1);
 }
 
 .logout-icon {
     font-size: x-large;
+    transition: transform 0.3s ease;
+}
+
+.logout-icon:hover {
+    transform: rotate(180deg);
+}
+
+@media (max-width: 1244px) {
+    .nav {
+        flex-direction: column;
+        height: auto;
+        padding: 0;
+    }
+
+    .nav li {
+        width: 100%;
+        justify-content: center;
+        border: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .nav a {
+        padding: 0.5rem;
+    }
+
+    .avatar {
+        width: 28px;
+        height: 28px;
+    }
+
+    .logout-icon {
+        font-size: xx-large;
+    }
 }

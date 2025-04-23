@@ -1,3 +1,7 @@
+.product-container {
+    padding: 20px;
+}
+
 .product-container,
 .product-form {
     display: flex;

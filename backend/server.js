@@ -1,5 +1,10 @@
 import express from "express";
+import fetch from "node-fetch";
+import passport from "passport";
+import { Strategy as DiscordStrategy } from "passport-discord";
+import { Strategy as GitHubStrategy } from "passport-github2";
 import { Sequelize, DataTypes, Op } from "sequelize";
+import crypto from "crypto";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import cors from "cors";
@@ -17,6 +22,9 @@ const PORT = process.env.PORT;
 const SWAGGER = process.env.SWAGGER;
 const ACCESS_TOKEN_KEY = process.env.ACCESS_TOKEN_KEY;
 const REFRESH_TOKEN_KEY = process.env.REFRESH_TOKEN_KEY;
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 // const ORIGIN = process.env.ORIGIN;
 
 const limiter = rateLimit({
@@ -25,6 +33,28 @@ const limiter = rateLimit({
     message: { error: "Zbyt wiele żądań, spróbuj ponownie później." }
 });
 
+passport.use(new DiscordStrategy({
+    clientID: process.env.DISCORD_CLIENT_ID,
+    clientSecret: process.env.DISCORD_CLIENT_SECRET,
+    callbackURL: process.env.DISCORD_CALLBACK_URL,
+    scope: ['identify', 'email']
+}, async (accessToken, refreshToken, profile, done) => {
+    return done(null, profile);
+}));
+
+passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    callbackURL: process.env.GITHUB_CALLBACK_URL,
+    scope: ['user:email']
+}, async (accessToken, refreshToken, profile, done) => {
+    return done(null, { profile, accessToken });
+}));
+
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((obj, done) => done(null, obj));
+
+app.use(passport.initialize());
 app.use(express.json());
 app.use(limiter);
 app.use(helmet());
@@ -89,6 +119,23 @@ const User = sequelize.define("User", {
         type: DataTypes.STRING,
         validate: { len: [40, 80] },
         allowNull: false
+    },
+    avatar: {
+        type: DataTypes.STRING,
+        validate: { isUrl: true, len: [0, 500] },
+        allowNull: true
+    },
+    github_id: {
+        type: DataTypes.STRING,
+        validate: { len: [0, 9] },
+        allowNull: true,
+        unique: true
+    },
+    discord_id: {
+        type: DataTypes.STRING,
+        validate: { len: [0, 18] },
+        allowNull: true,
+        unique: true
     }
 });
 
@@ -107,25 +154,137 @@ const Product = sequelize.define("Product",
 });
 
 const Blacklist = sequelize.define("Blacklist", {
-    token: {
+    id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    jti: {
         type: DataTypes.STRING,
-        validate: { len: [100, 500] },
+        validate: { len: [0, 36] },
         allowNull: false,
         unique: true
+    },
+    expires_at: {
+        type: DataTypes.DATE,
+        validate: { isDate: true },
+        allowNull: false
+    },
+});
+
+const Subscription = sequelize.define("Subscription", {
+    id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    plan: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            isIn: [['PREMIUM', 'PREMIUM+']]
+        }
+    },
+    start_date: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
+    },
+    end_date: {
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+    payment_id: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    status: {
+        type: DataTypes.STRING,
+        defaultValue: 'PENDING',
+        validate: {
+            isIn: [['PENDING', 'ACTIVE', 'EXPIRED', 'CANCELLED']]
+        }
     }
 });
 
 const UserProduct = sequelize.define("UserProduct", {});
+User.hasMany(Subscription);
+Subscription.belongsTo(User);
 User.belongsToMany(Product, { through: UserProduct });
 Product.belongsToMany(User, { through: UserProduct });
 
 sequelize.sync()
     .then(() => {
-        console.log("Baza danych zaktualizowana");
+        console.log("Baza danych zaktualizowana.");
+        return initAdminAccount();
+    })
+    .then(() => {
+        return cleanupExpiredTokens();
+    })
+    .then(() => {
+        console.log("Inicjalizacja serwera zakończona.");
     })
     .catch((err) => {
-        console.error("Błąd podczas synchronizacji bazy danych:", err);
+        console.error("Błąd podczas synchronizacji bazy danych, inicjalizacji konta administratora lub czyszczenia wygasłych tokenów z blacklisty: ", err);
     });
+
+const cleanupExpiredTokens = async () => {
+    try {
+        const currentDate = new Date();
+        const deletedCount = await Blacklist.destroy({
+            where: {
+                expires_at: {
+                    [Op.lt]: currentDate
+                }
+            }
+        });
+        console.log(`Usunięto ${deletedCount} wygasłych tokenów z blacklisty.`);
+    } catch (error) {
+        console.error("Błąd podczas czyszczenia wygasłych tokenów z blacklisty: ", error);
+    }
+};
+
+const initAdminAccount = async () => {
+    try {
+        if (!ADMIN_USERNAME || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
+            console.warn("Brak danych administratora w pliku .env. Konto administratora nie zostało utworzone.");
+            return;
+        }
+
+        const existingAdmin = await User.findOne({
+            where: { 
+                [Op.or]: [
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('username')), 
+                        sequelize.fn('LOWER', ADMIN_USERNAME)
+                    ),
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('email')), 
+                        sequelize.fn('LOWER', ADMIN_EMAIL)
+                    )
+                ]
+            }
+        });
+
+        if (existingAdmin) {
+            console.log("Konto administratora już istnieje.");
+            return;
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, salt);
+
+        await User.create({
+            username: ADMIN_USERNAME,
+            email: ADMIN_EMAIL,
+            password: hashedPassword
+        });
+
+        console.log("Konto administratora zostało utworzone.");
+    } catch (error) {
+        console.error("Błąd podczas tworzenia konta administratora: ", error);
+    }
+};
 
 const jwtAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -144,12 +303,14 @@ const jwtAuth = async (req, res, next) => {
     }
 
     try {
-        const blacklistedToken = await Blacklist.findOne({ where: { token } });
+        const decoded = jwt.verify(token, ACCESS_TOKEN_KEY);
+        const jti = decoded.jti || token.substring(0, 36);
+        
+        const blacklistedToken = await Blacklist.findOne({ where: { jti } });
         if (blacklistedToken) {
             return res.status(401).json({ error: "Access token został unieważniony." });
         }
-
-        const decoded = jwt.verify(token, ACCESS_TOKEN_KEY);
+        
         req.user = decoded;
         next();
     } catch (err) {
@@ -197,6 +358,106 @@ app.use(SWAGGER, swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 /**
  * @swagger
+ * /api/delete-account/{username}:
+ *   delete:
+ *     summary: Usuń konto użytkownika
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - name: username
+ *         in: path
+ *         required: true
+ *         description: Nazwa użytkownika (5-20 znaków, bez spacji, bez polskich znaków)
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Konto użytkownika usunięte pomyślnie
+ *       403:
+ *         description: Brak uprawnień do usunięcia tego konta (tylko właściciel konta lub administrator może usunąć konto)
+ *       404:
+ *         description: Użytkownik nie znaleziony
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.delete("/api/delete-account/:username", jwtAuth, async (req, res) => {
+    try {
+        const user = await User.findOne({
+            where: sequelize.where(
+                sequelize.fn('LOWER', sequelize.col('username')), 
+                sequelize.fn('LOWER', req.params.username)
+            )
+        });
+        if (!user) {
+            return res.status(404).json({ error: "Użytkownik nie znaleziony." });
+        }
+        
+        if (user.username === req.user.username || req.user.username === ADMIN_USERNAME) {
+            await user.destroy();
+            return res.status(200).json({ message: "Użytkownik usunięty." });
+        } else {
+            return res.status(403).json({ error: "Nie masz uprawnień do usunięcia konta tego użytkownika." });
+        }
+    } catch (error) {
+        console.error("Błąd podczas usuwania użytkownika:", error);
+        res.status(500).json({ error: "Wystąpił błąd serwera." });
+    }
+});
+
+/**
+ * @swagger
+ * /api/user/{username}:
+ *   get:
+ *     summary: Pobierz informacje o użytkowniku
+ *     parameters:
+ *       - name: username
+ *         in: path
+ *         required: true
+ *         description: Nazwa użytkownika (5-20 znaków, bez spacji, bez polskich znaków)
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Informacje o użytkowniku pobrane pomyślnie
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 username:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 avatar_url:
+ *                   type: string
+ *       404:
+ *         description: Użytkownik nie znaleziony
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.get("/api/user/:username", async (req, res) => {
+    try {
+        const user = await User.findOne({
+            where: sequelize.where(
+                sequelize.fn('LOWER', sequelize.col('username')), 
+                sequelize.fn('LOWER', req.params.username)
+            )
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: "Użytkownik nie znaleziony." });
+        }
+
+        res.status(200).json({ username: user.username, email: user.email, avatar_url: user.avatar });
+    } catch (error) {
+        res.status(500).json({ error: "Wystąpił błąd serwera." });
+    }
+});
+
+/**
+ * @swagger
  * /api/register:
  *   post:
  *     summary: Rejestracja nowego użytkownika
@@ -209,13 +470,13 @@ app.use(SWAGGER, swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  *             properties:
  *               username:
  *                 type: string
- *                 description: Nazwa użytkownika (5-20 znaków, bez spacji)
+ *                 description: (5-20 znaków, bez spacji, bez polskich znaków)
  *               email:
  *                 type: string
- *                 description: Adres email użytkownika
+ *                 description: Adres email użytkownika (6-320 znaków, bez spacji, bez polskich znaków)
  *               password:
  *                 type: string
- *                 description: Hasło (8-20 znaków, minimum jedna cyfra i znak specjalny)
+ *                 description: Hasło (8-20 znaków, minimum jedna mała litera, jedna wielka litera, jedna cyfra i znak specjalny, bez spacji, bez polskich znaków)
  *     responses:
  *       201:
  *         description: Zarejestrowano pomyślnie
@@ -263,10 +524,12 @@ app.post("/api/register", async (req, res) => {
 
         const newUser = await User.create({ username, email, password: hashedPassword });
 
-        const access_token_expiresIn = "00:00:00:30";
+        const access_jti = crypto.randomUUID();
+        const refresh_jti = crypto.randomUUID();
+        const access_token_expiresIn = "00:00:10:00";
         const refresh_token_expiresIn = "00:01:00:00";
-        const access_token = jwt.sign({ id: newUser.id, username: newUser.username }, ACCESS_TOKEN_KEY);
-        const refresh_token = jwt.sign({ id: newUser.id, username: newUser.username }, REFRESH_TOKEN_KEY);
+        const access_token = jwt.sign({ id: newUser.id, username: newUser.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
+        const refresh_token = jwt.sign({ id: newUser.id, username: newUser.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: '1h' });
 
         res.status(201).json({ message: "Zarejestrowano pomyślnie.", username: newUser.username, email: newUser.email, access_token: access_token, refresh_token: refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString()});
     } catch (error) {
@@ -317,7 +580,18 @@ app.post("/api/login", async (req, res) => {
         }
 
         const user = await User.findOne({
-            where: { [Op.or]: [{ username: usernameOrEmail }, { email: usernameOrEmail }] }
+            where: { 
+                [Op.or]: [
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('username')), 
+                        sequelize.fn('LOWER', usernameOrEmail)
+                    ),
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('email')), 
+                        sequelize.fn('LOWER', usernameOrEmail)
+                    )
+                ] 
+            }
         });
 
         if (!user) {
@@ -329,10 +603,12 @@ app.post("/api/login", async (req, res) => {
             return res.status(401).json({ error: "Nieprawidłowe dane logowania." });
         }
 
-        const access_token_expiresIn = "00:00:00:10";
-        const refresh_token_expiresIn = remember ? "07:00:00:00" : "00:01:00:00";
-        const access_token = jwt.sign({ id: user.id, username: user.username }, ACCESS_TOKEN_KEY);
-        const refresh_token = jwt.sign({ id: user.id, username: user.username }, REFRESH_TOKEN_KEY);
+        const access_jti = crypto.randomUUID();
+        const refresh_jti = crypto.randomUUID();
+        const access_token_expiresIn = "00:00:10:00";
+        const refresh_token_expiresIn = remember ? "01:00:00:00" : "00:01:00:00";
+        const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
+        const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: remember ? '1d' : '1h' });
 
         res.status(200).json({ message: "Zalogowano pomyślnie.", username: user.username, email: user.email, access_token: access_token, refresh_token: refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString()});
     } catch (error) {
@@ -356,7 +632,7 @@ app.post("/api/login", async (req, res) => {
  *         description: Wystąpił błąd serwera
  */
 
-app.post("/api/logout", jwtAuth, async (req, res) => {
+app.post("/api/logout", async (req, res) => {
     try {
         const { refresh_token } = req.body;
         if (!refresh_token) {
@@ -364,8 +640,21 @@ app.post("/api/logout", jwtAuth, async (req, res) => {
         }
         const access_token = req.headers.authorization.split(" ")[1];
 
-        await Blacklist.create({ token: access_token });
-        await Blacklist.create({ token: refresh_token });
+        const decodedAccessToken = jwt.decode(access_token);
+        const decodedRefreshToken = jwt.decode(refresh_token);
+        
+        const accessTokenExpiresAt = new Date(decodedAccessToken.exp * 1000);
+        const refreshTokenExpiresAt = new Date(decodedRefreshToken.exp * 1000);
+
+        await Blacklist.upsert({ 
+            jti: decodedAccessToken.jti, 
+            expires_at: accessTokenExpiresAt 
+        });
+        
+        await Blacklist.upsert({ 
+            jti: decodedRefreshToken.jti, 
+            expires_at: refreshTokenExpiresAt 
+        });
 
         res.status(200).json({ message: "Wylogowano pomyślnie." });
     } catch (error) {
@@ -407,23 +696,31 @@ app.post("/api/refresh", async (req, res) => {
         if (!refresh_token) {
             return res.status(400).json({ error: "Brak refresh tokenu." });
         }
-        console.log(refresh_token);
-        const blacklistedRefreshToken = await Blacklist.findOne({ where: { token: refresh_token } });
-        if (blacklistedRefreshToken) {
-            return res.status(401).json({ error: "Refresh token został unieważniony." });
-        }
-        const refreshTokenDecoded = jwt.verify(refresh_token, REFRESH_TOKEN_KEY);
-        const user = await User.findByPk(refreshTokenDecoded.id);
-        if (!user) {
-            return res.status(404).json({ error: "Użytkownik nie znaleziony." });
-        }
 
-        const access_token_expiresIn = "00:00:10:00";
-        const refresh_token_expiresIn = "00:01:00:00";
-        const access_token = jwt.sign({ id: user.id, username: user.username }, ACCESS_TOKEN_KEY);
-        const new_refresh_token = jwt.sign({ id: user.id, username: user.username }, REFRESH_TOKEN_KEY);
-        
-        res.status(200).json({ message: "Odświeżono tokeny.", username: user.username, email: user.email, access_token: access_token, refresh_token: new_refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString() });
+        try {
+            const refreshTokenVerified = jwt.verify(refresh_token, REFRESH_TOKEN_KEY);
+            const blacklistedRefreshToken = await Blacklist.findOne({ where: { jti: refreshTokenVerified.jti }});
+            
+            if (blacklistedRefreshToken) {
+                return res.status(401).json({ error: "Refresh token został unieważniony." });
+            }
+            
+            const user = await User.findByPk(refreshTokenVerified.id);
+            if (!user) {
+                return res.status(404).json({ error: "Użytkownik nie znaleziony." });
+            }
+
+            const access_jti = crypto.randomUUID();
+            const refresh_jti = crypto.randomUUID();
+            const access_token_expiresIn = "00:00:10:00";
+            const refresh_token_expiresIn = "00:01:00:00";
+            const new_access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
+            const new_refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: '1h' });
+            
+            res.status(200).json({ message: "Odświeżono tokeny.", username: user.username, email: user.email, access_token: new_access_token, refresh_token: new_refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString() });
+        } catch (verifyError) {
+            return res.status(401).json({ error: "Nieprawidłowy refresh token." });
+        }
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
@@ -469,6 +766,15 @@ app.get("/api/clear-session", async (req, res) => {
 app.get("/api/products", jwtAuth, async (req, res) => 
 {
     try {
+        const cookies = req.headers['cookie'];
+        const match = cookies.match(/access_token=([^;]+)/);
+        const access_token = match[1];
+        const decoded_token = jwt.verify(access_token, ACCESS_TOKEN_KEY);
+        console.log('======================');
+        console.log("Access token: ", access_token);
+        console.log("Decoded token: ", decoded_token);
+        console.log('======================');
+
         const user = await User.findByPk(req.user.id);
         if (!user) {
             return res.status(404).json({ error: "Użytkownik nie znaleziony." });
@@ -732,6 +1038,542 @@ app.patch("/api/edit-product/:id", jwtAuth, async (req, res) => {
         await existingProduct.save();
 
         res.status(200).json({ message: "Produkt zaktualizowany w bazie danych.", product: existingProduct });
+    } catch (error) {
+        res.status(500).json({ error: "Wystąpił błąd serwera." });
+    }
+});
+
+/**
+ * @swagger
+ * /api/login/github:
+ *   get:
+ *     summary: Inicjuje proces logowania przez GitHub
+ *     description: Przekierowuje użytkownika do strony autoryzacji GitHub
+ *     responses:
+ *       302:
+ *         description: Przekierowanie do strony logowania GitHub
+ *       429:
+ *         description: Zbyt wiele żądań, limit 10 na godzinę
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.get("/api/login/github", (req, res, next) => {
+    passport.authenticate('github')(req, res, next);
+});
+
+/**
+ * @swagger
+ * /api/auth/github:
+ *   get:
+ *     summary: Obsługuje callback po autoryzacji GitHub
+ *     description: Przetwarza dane z GitHub i tworzy/loguje użytkownika
+ *     parameters:
+ *       - name: code
+ *         in: query
+ *         description: Kod autoryzacyjny z GitHub
+ *         schema:
+ *           type: string
+ *       - name: error
+ *         in: query
+ *         description: Błąd z GitHub (jeśli występuje)
+ *         schema:
+ *           type: string
+ *       - name: link
+ *         in: query
+ *         description: Czy powiązać konto z istniejącym kontem (true/false)
+ *         schema:
+ *           type: string
+ *     responses:
+ *       302:
+ *         description: Przekierowanie do strony głównej po pomyślnym logowaniu
+ *       400:
+ *         description: Nie udało się pobrać adresu email lub próba powiązania z innym kontem GitHub
+ *       401:
+ *         description: Błąd autoryzacji lub nieprawidłowy token JWT
+ *       404:
+ *         description: Nie znaleziono użytkownika
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.get("/api/auth/github", async (req, res, next) => {
+    try {
+        if (req.query.error === "access_denied") {
+            res.clearCookie("session");
+            return res.redirect("http://localhost:5173/login");
+        }
+
+        passport.authenticate('github', async (err, authData) => {
+            if (err) {
+                return res.status(500).json({ error: `Błąd podczas uwierzytelnienia GitHub: ${err.message}` });
+            }
+            
+            if (!authData) {
+                return res.status(401).json({ error: "Nieudane uwierzytelnienie GitHub." });
+            }
+
+            const { profile, accessToken } = authData;
+            
+            const github_id = profile.id.toString();
+            let username = profile.username;
+            let email = profile.emails && profile.emails.length > 0 ? profile.emails[0].value : null;
+            const avatar_url = profile.photos && profile.photos.length > 0 ? profile.photos[0].value : null;
+            
+            if (!email && accessToken) {
+                try {
+                    const response = await fetch('https://api.github.com/user/emails', {
+                        headers: {
+                            'Authorization': `token ${accessToken}`,
+                            'User-Agent': 'BD_Lab-App'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const emails = await response.json();
+                        for (const em of emails) {
+                            if (em.primary && em.verified) {
+                                email = em.email;
+                                break;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching GitHub emails:", error);
+                }
+            }
+            
+            if (!email) {
+                return res.status(400).json({ error: "Nie udało się pobrać adresu email z GitHub." });
+            }
+
+            const link_account = req.query.link === "true";
+            
+            if (link_account) {
+                const authHeader = req.headers.authorization;
+                if (!authHeader || !authHeader.startsWith("Bearer ")) {
+                    return res.status(401).json({ error: "Brak tokenu JWT do powiązania konta." });
+                }
+                
+                try {
+                    const token = authHeader.split(" ")[1];
+                    const decoded = jwt.verify(token, ACCESS_TOKEN_KEY);
+                    const current_user = await User.findByPk(decoded.id);
+                    
+                    if (!current_user) {
+                        return res.status(404).json({ error: "Nie znaleziono użytkownika." });
+                    }
+                    
+                    if (current_user.github_id && current_user.github_id !== github_id) {
+                        return res.status(400).json({ error: "Twoje konto jest już powiązane z innym GitHub." });
+                    }
+                    
+                    current_user.github_id = github_id;
+                    if (!current_user.avatar && avatar_url) {
+                        current_user.avatar = avatar_url;
+                    }
+                    
+                    await current_user.save();
+                    return res.status(200).json({ message: "Konto GitHub zostało pomyślnie powiązane." });
+                } catch (error) {
+                    return res.status(401).json({ error: "Nieprawidłowy token JWT." });
+                }
+            }
+
+            let user = await User.findOne({
+                where: {
+                    [Op.or]: [
+                        { github_id },
+                        sequelize.where(sequelize.fn('LOWER', sequelize.col('username')), sequelize.fn('LOWER', username)),
+                        sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), sequelize.fn('LOWER', email))
+                    ]
+                }
+            });
+
+            if (user) {
+                if (!user.github_id) {
+                    user.github_id = github_id;
+                }
+                if (!user.avatar && avatar_url) {
+                    user.avatar = avatar_url;
+                }
+                await user.save();
+            } else {
+                let finalUsername = username;
+                const existingUser = await User.findOne({
+                    where: sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('username')), 
+                        sequelize.fn('LOWER', username)
+                    )
+                });
+                
+                if (existingUser) {
+                    finalUsername = `${username}_${Math.floor(Math.random() * 9000) + 1000}`;
+                }
+
+                const salt = await bcrypt.genSalt(10);
+                const randomPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), salt);
+                
+                user = await User.create({
+                    username: finalUsername,
+                    email,
+                    password: randomPassword,
+                    avatar: avatar_url,
+                    github_id
+                });
+            }
+
+            const access_jti = crypto.randomUUID();
+            const refresh_jti = crypto.randomUUID();
+            const access_token_expiresIn = "10m";
+            const refresh_token_expiresIn = "1d";
+            const accessExpireMs = 10 * 60 * 1000;
+            const refreshExpireMs = 24 * 60 * 60 * 1000; 
+            
+            const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
+            const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
+
+            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
+            res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+
+            return res.redirect("http://localhost:5173/home");
+            
+        })(req, res, next);
+    } catch (error) {
+        return res.status(500).json({ error: `Błąd podczas uwierzytelnienia GitHub: ${error.message}` });
+    }
+});
+
+/**
+ * @swagger
+ * /api/login/discord:
+ *   get:
+ *     summary: Inicjuje proces logowania przez Discord
+ *     description: Przekierowuje użytkownika do strony autoryzacji Discord
+ *     responses:
+ *       302:
+ *         description: Przekierowanie do strony logowania Discord
+ *       429:
+ *         description: Zbyt wiele żądań, limit 10 na godzinę
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.get("/api/login/discord", (req, res, next) => {
+    passport.authenticate('discord')(req, res, next);
+});
+
+/**
+ * @swagger
+ * /api/auth/discord:
+ *   get:
+ *     summary: Obsługuje callback po autoryzacji Discord
+ *     description: Przetwarza dane z Discord i tworzy/loguje użytkownika
+ *     parameters:
+ *       - name: code
+ *         in: query
+ *         description: Kod autoryzacyjny z Discord
+ *         schema:
+ *           type: string
+ *       - name: error
+ *         in: query
+ *         description: Błąd z Discord (jeśli występuje)
+ *         schema:
+ *           type: string
+ *     responses:
+ *       302:
+ *         description: Przekierowanie do strony głównej po pomyślnym logowaniu
+ *       400:
+ *         description: Nie udało się pobrać adresu email z Discord
+ *       401:
+ *         description: Błąd autoryzacji
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.get("/api/auth/discord", async (req, res, next) => {
+    try {
+        if (req.query.error === "access_denied") {
+            res.clearCookie("session");
+            return res.redirect("http://localhost:5173/login");
+        }
+
+        passport.authenticate('discord', async (err, discordUser) => {
+            if (err) {
+                return res.status(500).json({ error: `Błąd podczas uwierzytelnienia Discord: ${err.message}` });
+            }
+            
+            if (!discordUser) {
+                return res.status(401).json({ error: "Nieudane uwierzytelnienie Discord." });
+            }
+
+            const discord_id = discordUser.id;
+            const username = discordUser.username;
+            const email = discordUser.email;
+            const avatar_url = discordUser.avatar 
+                ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` 
+                : null;
+
+            if (!email) {
+                return res.status(400).json({ error: "Nie udało się pobrać adresu email z Discord." });
+            }
+
+            let user = await User.findOne({
+                where: {
+                    [Op.or]: [
+                        { discord_id },
+                        sequelize.where(sequelize.fn('LOWER', sequelize.col('username')), sequelize.fn('LOWER', username)),
+                        sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), sequelize.fn('LOWER', email))
+                    ]
+                }
+            });
+
+            if (user) {
+                if (!user.discord_id) {
+                    user.discord_id = discord_id;
+                }
+                if (!user.avatar && avatar_url) {
+                    user.avatar = avatar_url;
+                }
+                await user.save();
+            } else {
+                let finalUsername = username;
+                const existingUser = await User.findOne({
+                    where: sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('username')), 
+                        sequelize.fn('LOWER', username)
+                    )
+                });
+                
+                if (existingUser) {
+                    finalUsername = `${username}_${Math.floor(Math.random() * 9000) + 1000}`;
+                }
+
+                const salt = await bcrypt.genSalt(10);
+                const randomPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), salt);
+                
+                user = await User.create({
+                    username: finalUsername,
+                    email,
+                    password: randomPassword,
+                    avatar: avatar_url,
+                    discord_id
+                });
+            }
+
+            const access_jti = crypto.randomUUID();
+            const refresh_jti = crypto.randomUUID();
+            const access_token_expiresIn = "10m";
+            const refresh_token_expiresIn = "1d";
+            const accessExpireMs = 10 * 60 * 1000;
+            const refreshExpireMs = 24 * 60 * 60 * 1000; 
+            
+            const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
+            const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
+
+            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
+            res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+
+            return res.redirect("http://localhost:5173/home");
+            
+        })(req, res, next);
+    } catch (error) {
+        return res.status(500).json({ error: `Błąd podczas uwierzytelnienia Discord: ${error.message}` });
+    }
+});
+
+/**
+ * @swagger
+ * /api/payments/create:
+ *   post:
+ *     summary: Inicjuje zakup pakietu PREMIUM lub PREMIUM+
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               plan:
+ *                 type: string
+ *                 enum: [PREMIUM, PREMIUM+]
+ *     responses:
+ *       200:
+ *         description: Przekierowanie do bramki płatności
+ *       400:
+ *         description: Nieprawidłowy plan
+ *       404:
+ *         description: Nie znaleziono użytkownika
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.post("/api/payments/create", jwtAuth, async (req, res) => {
+    try {
+        const { plan } = req.body;
+        
+        if (!plan || !['PREMIUM', 'PREMIUM+'].includes(plan)) {
+            return res.status(400).json({ error: "Nieprawidłowy plan. Wybierz PREMIUM lub PREMIUM+." });
+        }
+        
+        const user = await User.findByPk(req.user.id);
+        if (!user) {
+            return res.status(404).json({ error: "Nie znaleziono użytkownika." });
+        }
+        
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 30);
+        
+        const subscription = await Subscription.create({
+            UserId: user.id,
+            plan,
+            end_date: endDate,
+            status: 'PENDING'
+        });
+        
+        const control = `SUB_${subscription.id}_${user.id}_${Date.now()}`;
+        
+        subscription.payment_id = control;
+        await subscription.save();
+        
+        let payment_url;
+        if (plan === 'PREMIUM') {
+            payment_url = 'https://ssl.dotpay.pl/test_payment/?chk=701ceb89da2a764d2f4aff29cee6871fa2f6fb539132d6986d7286c920b91f9c&pid=hiogcoacvzy38qjxf8epzhpf7nathwzt';
+        } else {
+            payment_url = 'https://ssl.dotpay.pl/test_payment/?chk=afcc2f00ba962c499d5d1a7cebfab3900dc1f5e0c2a56fdf55a461004b8036cc&pid=7b87coq0s1qel2agw4sq2bno3nfg6svq';
+        }
+        
+        res.status(200).json({ message: "Przekierowanie do systemu płatności.", payment_url: payment_url });
+        
+    } catch (error) {
+        res.status(500).json({ error: "Wystąpił błąd serwera." });
+    }
+});
+
+/**
+ * @swagger
+ * /api/payments/webhook:
+ *   post:
+ *     summary: Webhook dla powiadomień o płatnościach z Dotpay
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: OK
+ *       404:
+ *         description: Nie znaleziono użytkownika
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.post("/api/payments/webhook", express.urlencoded({ extended: true }), async (req, res) => {
+    try {
+        const {
+            operation_number,
+            operation_type,
+            operation_status,
+            control,
+            signature
+        } = req.body;
+        
+        if (!operation_number || !operation_type || !operation_status || !control) {
+            return res.status(400).json({ error: "Brak wymaganych danych." });
+        }
+
+        console.log("ELOOOOOO:", {
+            operation_number,
+            operation_type,
+            operation_status,
+            control
+        });
+
+        if (operation_status === "completed" && operation_type === "payment") {
+            const parts = control.split('_');
+            if (parts.length >= 3) {
+                const subscriptionId = parts[1];
+                const userId = parts[2];
+                
+                const subscription = await Subscription.findOne({
+                    where: { 
+                        id: subscriptionId,
+                        UserId: userId,
+                        payment_id: control
+                    }
+                });
+                
+                if (subscription) {
+                    subscription.status = "ACTIVE";
+                    await subscription.save();
+                }
+            }
+        }
+        
+        res.status(200).json({ message: "OK" });
+        
+    } catch (error) {
+        res.status(500).json({ error: "Wystąpił błąd serwera." });
+    }
+});
+
+/**
+ * @swagger
+ * /api/payments/status:
+ *   get:
+ *     summary: Sprawdź status subskrypcji użytkownika
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Status subskrypcji
+ *       404:
+ *         description: Nie znaleziono użytkownika
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+
+app.get("/api/payments/status", jwtAuth, async (req, res) => {
+    try {
+        const user = await User.findByPk(req.user.id);
+        if (!user) {
+            return res.status(404).json({ error: "Nie znaleziono użytkownika." });
+        }
+
+        const subscription = await Subscription.findOne({
+            where: {
+                UserId: req.user.id
+            },
+            order: [['end_date', 'DESC']]
+        });
+
+        if (!subscription) {
+            return res.status(200).json({ 
+                message: "Użytkownik nie ma subskrypcji.", 
+                has_premium: false, 
+                subscription: null 
+            });
+        }
+        
+        const isActive = subscription.status === "ACTIVE" && 
+                         new Date(subscription.end_date) > new Date();
+        
+        return res.status(200).json({ 
+            message: isActive ? "Użytkownik ma aktywną subskrypcję." : "Użytkownik ma nieaktywną subskrypcję.",
+            has_premium: isActive,
+            subscription: {
+                status: subscription.status,
+                plan: subscription.plan,
+                end_date: isActive ? subscription.end_date : null
+            }
+        });
+        
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }

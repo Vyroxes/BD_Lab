@@ -1,9 +1,17 @@
 #root {
-  margin: 0;
+  margin: 0 auto;
+  text-align: center;
 }
 
 .app {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+}
+
+.container {
+  height: calc(100vh - 80px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
