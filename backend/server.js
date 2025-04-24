@@ -1458,7 +1458,8 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
             URL: returnUrl,
             URLC: webhookUrl,
             p_info: user.username,
-            p_email: user.email
+            p_email: user.email,
+            type: '4'
         };
 
         const chk = generateSignature(data, DOTPAY_PIN);
