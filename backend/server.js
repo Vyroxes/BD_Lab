@@ -1228,7 +1228,7 @@ app.get("/api/auth/github", async (req, res, next) => {
             res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: refreshExpireMs });
             res.cookie('username', user.username, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
 
-            return res.redirect("https://bd-lab-1.onrender.com/home");
+            return res.redirect("https://bd-lab-1.onrender.com/register");
             
         })(req, res, next);
     } catch (error) {
