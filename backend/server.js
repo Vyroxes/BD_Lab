@@ -1456,44 +1456,65 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
  *         description: Wystąpił błąd serwera
  */
 
-app.post("/api/payments/webhook", express.urlencoded({ extended: true }), async (req, res) => {
+app.post("/api/payments/webhook", async (req, res) => {
     try {
         const {
             operation_number,
             operation_type,
             operation_status,
             control,
-            signature
+            email,
+            operation_amount,
+            operation_currency,
+            operation_datetime,
+            description
         } = req.body;
         
-        if (!operation_number || !operation_type || !operation_status || !control) {
+        if (!operation_number || !operation_type || !operation_status) {
             return res.status(400).json({ error: "Brak wymaganych danych." });
         }
 
-        console.log("ELOOOOOO:", {
-            operation_number,
-            operation_type,
-            operation_status,
-            control
-        });
-
         if (operation_status === "completed" && operation_type === "payment") {
-            const parts = control.split('_');
-            if (parts.length >= 3) {
-                const subscriptionId = parts[1];
-                const userId = parts[2];
-                
-                const subscription = await Subscription.findOne({
-                    where: { 
-                        id: subscriptionId,
-                        UserId: userId,
-                        payment_id: control
+            if (control && control.includes('_')) {
+                const parts = control.split('_');
+                if (parts.length >= 3) {
+                    const subscriptionId = parts[1];
+                    const userId = parts[2];
+                    
+                    const subscription = await Subscription.findOne({
+                        where: { 
+                            id: subscriptionId,
+                            UserId: userId,
+                            payment_id: control
+                        }
+                    });
+                    
+                    if (subscription) {
+                        subscription.status = "ACTIVE";
+                        await subscription.save();
+                        console.log(`Aktywowano subskrypcję ID: ${subscriptionId}`);
                     }
+                }
+            } 
+            else if (email) {
+                const user = await User.findOne({
+                    where: { email: email }
                 });
                 
-                if (subscription) {
-                    subscription.status = "ACTIVE";
-                    await subscription.save();
+                if (user) {
+                    const pendingSubscription = await Subscription.findOne({
+                        where: {
+                            UserId: user.id,
+                            status: 'PENDING'
+                        },
+                        order: [['createdAt', 'DESC']]
+                    });
+                    
+                    if (pendingSubscription) {
+                        pendingSubscription.status = "ACTIVE";
+                        await pendingSubscription.save();
+                        console.log(`Aktywowano subskrypcję dla użytkownika ${user.username} na podstawie email`);
+                    }
                 }
             }
         }
