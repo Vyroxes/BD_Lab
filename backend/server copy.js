@@ -1585,11 +1585,6 @@ app.use((req, res) => {
 
 app.listen(PORT, () => 
 {
-    const address = server.address();
-    const listeningAddress = typeof address === 'string' 
-        ? address 
-        : `${ADDRESS}:${address.port}`;
-    
-    console.log(`Serwer działa na ${listeningAddress}`);
-    console.log(`Dokumentacja API: ${listeningAddress}${SWAGGER}`);
+    console.log(`Serwer działa na ${ADDRESS}${PORT}`);
+    console.log(`Dokumentacja API: ${ADDRESS}${PORT}${SWAGGER}`);
 });
