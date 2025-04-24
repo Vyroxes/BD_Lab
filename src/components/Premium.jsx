@@ -21,14 +21,17 @@ const Premium = () => {
     const [paymentMsg, setPaymentMsg] = useState(null);
     const [paymentError, setPaymentError] = useState(null);
 
+    const param = searchParams.get('status');
+
     const apiUrl = import.meta.env.VITE_API_URL;
 
     useEffect(() => {
-        const status = searchParams.get('status');
-        if (status === 'OK') {
+        if (param === 'OK') {
+            setStatus(true);
             setPaymentMsg('Płatność zakończona sukcesem!');
         }
-        else if (status === 'FAIL') {
+        else if (param === 'FAIL') {
+            setStatus(true);
             setPaymentError('Płatność nie powiodła się. Spróbuj ponownie.');
         }
     }, [searchParams]);
