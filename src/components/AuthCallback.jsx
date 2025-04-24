@@ -4,7 +4,6 @@ import { setTokens } from '../utils/Auth';
 
 const AuthCallback = () => {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -12,30 +11,30 @@ const AuthCallback = () => {
     const handleAuthCallback = async () => {
       try {
         const params = new URLSearchParams(location.search);
+        const username = params.get('username');
+        const email = params.get('email');
         const accessToken = params.get('access_token');
         const refreshToken = params.get('refresh_token');
-        const username = params.get('username');
-
-        if (!accessToken || !refreshToken) {
-          throw new Error('Brak wymaganych tokenów w odpowiedzi autoryzacyjnej');
+        const accessTokenExpire = params.get('expire_time');
+        const refreshTokenExpire = params.get('refresh_expire_time');
+        
+        if (!username || !email || !accessToken || !refreshToken || !accessTokenExpire || !refreshTokenExpire) {
+          throw new Error('Brak wymaganych danych w odpowiedzi autoryzacyjnej.');
         }
 
-        const accessTokenExpire = "00:00:10:00";
-        const refreshTokenExpire = "01:00:00:00";
-
         setTokens(
+          username,
+          email,
           accessToken,
           refreshToken, 
           accessTokenExpire,
-          refreshTokenExpire,
-          username
+          refreshTokenExpire
         );
 
-        console.log('Autoryzacja zakończona pomyślnie');
+        console.log('Zalogowano pomyślnie za pomocą sociali.');
         navigate('/home', { replace: true });
-      } catch (err) {
-        console.error('Błąd podczas przetwarzania parametrów autoryzacji:', err);
-        setError('Wystąpił błąd podczas logowania. Spróbuj ponownie.');
+      } catch (error) {
+        console.error('Błąd podczas przetwarzania parametrów autoryzacji: ', error);
         navigate('/login', { replace: true });
       } finally {
         setLoading(false);
@@ -46,11 +45,7 @@ const AuthCallback = () => {
   }, [location, navigate]);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen">Trwa logowanie...</div>;
-  }
-
-  if (error) {
-    return <div className="flex justify-center items-center h-screen text-red-500">{error}</div>;
+    return <div className="flex justify-center items-center h-screen">Trwa logowanie za pomocą sociali...</div>;
   }
 
   return null;

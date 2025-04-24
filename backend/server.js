@@ -607,6 +607,7 @@ app.post("/api/login", async (req, res) => {
         const refresh_jti = crypto.randomUUID();
         const access_token_expiresIn = "00:00:10:00";
         const refresh_token_expiresIn = remember ? "01:00:00:00" : "00:01:00:00";
+
         const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
         const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: remember ? '1d' : '1h' });
 
@@ -1216,20 +1217,13 @@ app.get("/api/auth/github", async (req, res, next) => {
 
             const access_jti = crypto.randomUUID();
             const refresh_jti = crypto.randomUUID();
-            const access_token_expiresIn = "10m";
-            const refresh_token_expiresIn = "1d";
-            const accessExpireMs = 10 * 60 * 1000;
-            const refreshExpireMs = 24 * 60 * 60 * 1000; 
+            const access_token_expiresIn = "00:00:10:00";
+            const refresh_token_expiresIn = remember ? "01:00:00:00" : "00:01:00:00";
             
-            const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
-            const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
+            const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: "10m" });
+            const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: "1d" });
 
-            // res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
-            // res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: refreshExpireMs });
-            // res.cookie('username', user.username, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
-
-            return res.redirect(`https://bd-lab-1.onrender.com/auth-callback?access_token=${encodeURIComponent(access_token)}&refresh_token=${encodeURIComponent(refresh_token)}&username=${encodeURIComponent(user.username)}`);
-            // return res.redirect("https://bd-lab-1.onrender.com/home");
+            return res.redirect(`https://bd-lab-1.onrender.com/auth-callback?username=${encodeURIComponent(user.username)}&email=${encodeURIComponent(user.email)}&access_token=${encodeURIComponent(access_token)}&refresh_token=${encodeURIComponent(refresh_token)}&expire_time=${encodeURIComponent(access_token_expiresIn.toString())}&refresh_expire_time=${encodeURIComponent(refresh_token_expiresIn.toString())}`);
             
         })(req, res, next);
     } catch (error) {
@@ -1356,19 +1350,13 @@ app.get("/api/auth/discord", async (req, res, next) => {
 
             const access_jti = crypto.randomUUID();
             const refresh_jti = crypto.randomUUID();
-            const access_token_expiresIn = "10m";
-            const refresh_token_expiresIn = "1d";
-            const accessExpireMs = 10 * 60 * 1000;
-            const refreshExpireMs = 24 * 60 * 60 * 1000; 
+            const access_token_expiresIn = "00:00:10:00";
+            const refresh_token_expiresIn = remember ? "01:00:00:00" : "00:01:00:00";
             
-            const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
-            const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
+            const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: "10m" });
+            const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: "1d" });
 
-            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
-            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: refreshExpireMs });
-            res.cookie('username', user.username, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
-
-            return res.redirect("https://bd-lab-1.onrender.com/home");
+            return res.redirect(`https://bd-lab-1.onrender.com/auth-callback?username=${encodeURIComponent(user.username)}&email=${encodeURIComponent(user.email)}&access_token=${encodeURIComponent(access_token)}&refresh_token=${encodeURIComponent(refresh_token)}&expire_time=${encodeURIComponent(access_token_expiresIn.toString())}&refresh_expire_time=${encodeURIComponent(refresh_token_expiresIn.toString())}`);
             
         })(req, res, next);
     } catch (error) {

@@ -53,12 +53,12 @@ const Register = ({ onLogin }) => {
 
             if (response.status === 201) {
                 setTokens(
+                    response.data.username,
+                    response.data.email,
                     response.data.access_token,
                     response.data.refresh_token,
                     response.data.expire_time,
-                    response.data.refresh_expire_time,
-                    response.data.username,
-                    response.data.email
+                    response.data.refresh_expire_time
                 );
                 onLogin();
                 navigate('/home');
