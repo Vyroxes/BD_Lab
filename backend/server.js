@@ -452,7 +452,7 @@ app.get("/api/user/:username", async (req, res) => {
             return res.status(404).json({ error: "Użytkownik nie znaleziony." });
         }
 
-        res.status(200).json({ username: user.username, email: user.email, avatar_url: user.avatar });
+        res.status(200).json({ username: user.username, email: user.email, avatar_url: user.avatar, github_id: user.github_id, discord_id: user.discord_id, account_created: user.createdAt.toISOString() });
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }

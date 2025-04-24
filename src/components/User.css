@@ -71,7 +71,7 @@
     animation: expandLine 1.2s ease forwards;
 }
 
-.user-header a {
+.user-header p {
     font-size: 1.3rem;
     color: rgba(255, 255, 255, 0.8);
     margin: 15px 0 5px;
@@ -80,7 +80,7 @@
     transition: all 0.3s ease;
 }
 
-.user-header a:hover {
+.user-header p:hover {
     color: #4caf50;
     transform: translateY(-2px);
 }
@@ -115,7 +115,7 @@
 .user-stats h2 {
     font-size: 1.7rem;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     color: rgba(255, 255, 255, 0.9);
     position: relative;
     display: inline-block;
@@ -132,7 +132,6 @@
     align-items: center;
     list-style: none;
     font-size: 1.2rem;
-    margin-bottom: 12px;
     color: rgba(255, 255, 255, 0.85);
     position: relative;
     padding-left: 25px;
@@ -140,8 +139,9 @@
     transition: all 0.3s ease;
 }
 
-.user-stats a {
-    margin-left: 5px;
+.user-stats p {
+    margin: 0;
+    padding: 5px;
     color: #4caf50;
     animation: slideInLeft 1s ease forwards;
     transition: all 0.3s ease;
@@ -263,7 +263,7 @@
         font-size: 2rem;
     }
     
-    .user-header a {
+    .user-header p {
         font-size: 1.1rem;
     }
     
@@ -295,7 +295,7 @@
         font-size: 1.7rem;
     }
     
-    .user-header a {
+    .user-header p {
         font-size: 1rem;
     }
     

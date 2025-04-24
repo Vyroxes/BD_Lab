@@ -12,6 +12,9 @@ const User = () => {
     const [loading, setLoading] = useState(true);
     const [email, setEmail] = useState(null); 
     const [avatarUrl, setAvatarUrl] = useState(null);
+    const [github_id, setGithubId] = useState(null);
+    const [discord_id, setDiscordId] = useState(null);
+    const [accountCreated, setAccountCreated] = useState(null);
 
     const { username } = useParams();
 
@@ -78,12 +81,24 @@ const User = () => {
             fetchUserData();
             setAccessTokenExpiration(
                 getTokenExpireDate("access_token") 
-                    ? getTokenExpireDate("access_token").toLocaleString() 
+                    ? getTokenExpireDate("access_token").toLocaleString('pl-PL', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }) 
                     : "Brak danych"
             );
             setRefreshTokenExpiration(
                 getTokenExpireDate("refresh_token") 
-                    ? getTokenExpireDate("refresh_token").toLocaleString() 
+                    ? getTokenExpireDate("refresh_token").toLocaleString('pl-PL', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })  
                     : "Brak danych"
             );
         }
@@ -95,7 +110,19 @@ const User = () => {
             if (response.status === 200) {
                 setEmail(response.data.email);
                 setAvatarUrl(response.data.avatar_url);
+                setGithubId(response.data.github_id);
+                setDiscordId(response.data.discord_id);
+                const date = new Date(response.data.account_created);
+                const formattedDate = date.toLocaleString('pl-PL', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                setAccountCreated(formattedDate);
                 setLoading(false);
+                console.log(response.data);
             } else {
                 navigate('/home');
             }
@@ -143,31 +170,42 @@ const User = () => {
                     loading="lazy"
                     />
                 <h1>{username}</h1>
-                <a>{email}</a>
+                <p>{email}</p>
             </div>
-            <div className="user-stats">
-                {username === currentUsername && currentUsername === adminUsername && (<>
+            {(username === currentUsername || currentUsername === adminUsername) && (<div className="user-stats">
+                <h2>Informacje użytkownika</h2>
+                <li>Połączony z Github:
+                    <p>{github_id ? `Tak (${github_id})` : "nie"}</p>
+                </li>
+                <li>Połączony z Discord:
+                    <p>{discord_id ? `Tak (${discord_id})` : "nie"}</p>
+                </li>
+                <li>Data utworzenia konta:
+                    <p>{accountCreated}</p>
+                </li>
+                {currentUsername === adminUsername && (<>
                     <h2>Informacje administratora</h2>
                     <li>Access token:</li>
                     <textarea readOnly value={getCookie("access_token") || "brak"}></textarea>
                     <li>Wygaśnięcie access tokenu:
-                        <a>{accessTokenExpiration || "brak"}</a>
+                        <p>{accessTokenExpiration || "brak"}</p>
                     </li>
                     <li>Czas do wygaśnięcia access tokenu:
-                        <a>{timeToAccessTokenExpire || "brak"}</a>
+                        <p>{timeToAccessTokenExpire || "brak"}</p>
                     </li>
                     <li>Refresh token:</li>
                     <textarea readOnly value={getCookie("refresh_token") || "brak"}></textarea>
                     <li>Wygaśnięcie refresh tokenu:
-                        <a>{refreshTokenExpiration || "brak"}</a>
+                        <p>{refreshTokenExpiration || "brak"}</p>
                     </li>
                     <li>Czas do wygaśnięcia refresh tokenu:
-                        <a>{timeToRefreshTokenExpire}</a>
+                        <p>{timeToRefreshTokenExpire}</p>
                     </li>
                     <li>Session token:</li>
                     <textarea readOnly value={getCookie("session") || "brak"}></textarea>
                 </>)}
             </div>
+            )}
             <div className="user-actions">
                 {(username === currentUsername || currentUsername === adminUsername) && (<button className='delete-account-button' onClick={() => deleteAccount()}>Usuń konto</button>)}
             </div>
