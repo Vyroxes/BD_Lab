@@ -1139,7 +1139,7 @@ app.get("/api/auth/github", async (req, res, next) => {
                         }
                     }
                 } catch (error) {
-                    console.error("Błąd podczas pobierania emailu z GitHub: ", error);
+                    console.error("Błąd podczas pobierania adresu email z GitHub: ", error);
                 }
             }
             
