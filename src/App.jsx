@@ -6,6 +6,7 @@ import './App.css';
 
 const Login = lazy(() => import('./components/Login'));
 const Register = lazy(() => import('./components/Register'));
+const AuthCallback = lazy(() => import('./components/AuthCallback'));
 const Home = lazy(() => import('./components/Home'));
 const Products = lazy(() => import('./components/Products'));
 const Product = lazy(() => import('./components/Product'));
@@ -39,6 +40,7 @@ const App = () => {
         <Routes>
           <Route path="/login" element={<Login onLogin={() => setAuthState(true)}/>}/>
           <Route path="/register" element={<Register onLogin={() => setAuthState(true)}/>}/>
+          <Route path="/auth-callback" element={<AuthCallback />}/>
           <Route path="/home" element={authState ? <Home /> : <Navigate to="/login" />} />
           <Route path="/products" element={authState ? <Products/> : <Navigate to="/login" />}/>
           <Route path="/product/:id" element={authState ? <Product/> : <Navigate to="/login" />}/>
