@@ -31,7 +31,7 @@ const DOTPAY_PIN = process.env.DOTPAY_PIN;
 app.use(
     cors({
         credentials: true,
-        origin: ["https://bd-lab-1.onrender.com", "http://localhost:5173", "http://192.168.0.1:5173"],
+        origin: ["https://bd-lab-1.onrender.com", "http://localhost:5173", "http://192.168.0.1:5173", "https://github.com", "https://discord.com"],
         methods: ["OPTIONS", "GET", "POST", "PATCH", "DELETE"],
         allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
         exposedHeaders: ["Content-Length", "Content-Type"],
