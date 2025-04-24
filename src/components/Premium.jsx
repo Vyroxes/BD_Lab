@@ -8,7 +8,7 @@ import { MdOutlineDarkMode } from "react-icons/md";
 import { IoIosStats } from "react-icons/io";
 import { AiFillMail } from "react-icons/ai";
 import { authAxios } from '../utils/Auth';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 import './Premium.css';
 
@@ -31,7 +31,7 @@ const Premium = () => {
         else if (status === 'FAIL') {
             setPaymentError('Płatność nie powiodła się. Spróbuj ponownie.');
         }
-    }, [searchParams, navigate]);
+    }, [searchParams]);
 
     useEffect(() => {
         const checkSubscription = async () => {
