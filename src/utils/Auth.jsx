@@ -6,6 +6,8 @@ const REFRESH_TOKEN_KEY = 'refresh_token';
 const USERNAME_KEY = 'username';
 const SESSION_KEY = 'session';
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 export const setTokens = (accessToken, refreshToken, accessTokenExpire, refreshTokenExpire, username, email) => {
     const accessTokenExpireDate = new Date();
     const [days, hours, minutes, seconds] = accessTokenExpire.split(':').map(Number);
@@ -76,7 +78,7 @@ export const refreshAccessToken = async () => {
         }
 
         if (isAccessTokenExpiringSoon() || !getAccessToken()) {
-            const response = await axios.post('/api/refresh', { refresh_token: refreshToken });
+            const response = await axios.post(`${apiUrl}/api/refresh`, { refresh_token: refreshToken });
             if (response.status === 200) {
                 setTokens(response.data.access_token, response.data.refresh_token, response.data.expire_time, response.data.refresh_expire_time, response.data.username, response.data.email);
                 console.log('Token odświeżony pomyślnie.');
