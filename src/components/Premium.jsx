@@ -94,7 +94,7 @@ const Premium = () => {
                 <h1>Twój aktualny pakiet</h1>
                 <div className='current-subscription'>
                     <h2>{subscription.plan}</h2>
-                    <p>Twój pakiet jest aktywny do: {new Date(subscription.end_date).toLocaleDateString()}</p>
+                    <p>Twój pakiet jest aktywny do:<p color='#4caf50'>{new Date(subscription.end_date).toLocaleDateString()}</p></p>
                 </div>
             </div>
         );
