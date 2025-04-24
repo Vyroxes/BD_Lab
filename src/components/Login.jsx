@@ -35,6 +35,8 @@ const Login = ({ onLogin }) => {
                 usernameOrEmail,
                 password,
                 remember,
+            }, {
+                withCredentials: true,
             });
 
             if (response.status === 200) {
