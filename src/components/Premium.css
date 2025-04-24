@@ -23,13 +23,18 @@
     animation: expandLine 1.5s ease-out forwards 0.8s;
 }
 
-.error-message {
+.error-message,
+.payment-message {
     color: #f44336;
     font-size: 1.2rem;
     text-align: center;
     margin-top: 20px;
     animation: fadeIn 0.5s ease forwards;
     margin-bottom: 30px;
+}
+
+.payment-message {
+    color: #4bff2b;
 }
 
 .premium-cards {

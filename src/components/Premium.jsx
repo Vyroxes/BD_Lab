@@ -8,17 +8,30 @@ import { MdOutlineDarkMode } from "react-icons/md";
 import { IoIosStats } from "react-icons/io";
 import { AiFillMail } from "react-icons/ai";
 import { authAxios } from '../utils/Auth';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 import './Premium.css';
 
 const Premium = () => {
+    const [searchParams] = useSearchParams(); 
     const [loading, setLoading] = useState(false);
     const [loading2, setLoading2] = useState(false);
     const [status, setStatus] = useState(false);
     const [subscription, setSubscription] = useState(null);
+    const [paymentMsg, setPaymentMsg] = useState(null);
     const [paymentError, setPaymentError] = useState(null);
 
     const apiUrl = import.meta.env.VITE_API_URL;
+
+    useEffect(() => {
+        const status = searchParams.get('status');
+        if (status === 'OK') {
+            setPaymentMsg('Płatność zakończona sukcesem!');
+        }
+        else if (status === 'FAIL') {
+            setPaymentError('Płatność nie powiodła się. Spróbuj ponownie.');
+        }
+    }, [searchParams, navigate]);
 
     useEffect(() => {
         const checkSubscription = async () => {
@@ -87,6 +100,7 @@ const Premium = () => {
     return (
         <div className='premium-container'>
             <h1>Premium</h1>
+            {paymentMsg && <div className="payment-message">{paymentMsg}</div>}
             {paymentError && <div className="error-message">{paymentError}</div>}
             <div className='premium-cards'>
                 <div className='premium-content'>
