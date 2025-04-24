@@ -31,7 +31,8 @@ app.use(
         credentials: true,
         origin: ["https://bd-lab-1.onrender.com", "http://localhost:5173", "http://192.168.0.1:5173"],
         methods: ["OPTIONS", "GET", "POST", "PATCH", "DELETE"],
-        allowedHeaders: ["Content-Type", "Authorization"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+        exposedHeaders: ["Content-Length", "Content-Type"],
         optionsSuccessStatus: 200
     })
 );
@@ -68,6 +69,7 @@ passport.deserializeUser((obj, done) => done(null, obj));
 app.use(passport.initialize());
 app.use(express.json());
 app.use(limiter);
+app.use(express.urlencoded({ extended: true }));
 
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
