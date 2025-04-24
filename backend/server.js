@@ -26,6 +26,18 @@ const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
+app.use(
+    cors({
+        credentials: true,
+        origin: ["https://bd-lab-1.onrender.com", "http://localhost:5173", "http://192.168.0.1:5173"],
+        methods: ["OPTIONS", "GET", "POST", "PATCH", "DELETE"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        optionsSuccessStatus: 200
+    })
+);
+
+app.options('*', cors());
+
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -56,19 +68,12 @@ passport.deserializeUser((obj, done) => done(null, obj));
 app.use(passport.initialize());
 app.use(express.json());
 app.use(limiter);
-app.use(helmet());
 
-app.use(
-    cors({
-        credentials: true,
-        origin: ["https://bd-lab-1.onrender.com", "http://localhost:5173", "http://192.168.0.1:5173"],
-        methods: ["OPTIONS", "GET", "POST", "PATCH", "DELETE"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-        optionsSuccessStatus: 200
-    })
-);
-
-app.options('*', cors());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "unsafe-none" },
+    contentSecurityPolicy: false
+}));
 
 app.use((req, res, next) => {
     const allowedMethods = ["OPTIONS", "GET", "POST", "PATCH", "DELETE"];
