@@ -64,7 +64,7 @@ app.use(
             credentials: true,
             // origin: ORIGIN,
             origin: (origin, callback) => {
-                if (!origin || origin.startsWith('http://192.168.') || origin.startsWith('http://localhost')) {
+                if (!origin || origin.startsWith('http://192.168.') || origin.startsWith('http://localhost') || origin.startsWith('https://bd-lab-1.onrender.com/')) {
                     callback(null, true);
                 } else {
                     callback(new Error('Nieautoryzowany dostęp z tego źródła.'));
