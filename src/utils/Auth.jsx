@@ -78,7 +78,12 @@ export const refreshAccessToken = async () => {
         }
 
         if (isAccessTokenExpiringSoon() || !getAccessToken()) {
-            const response = await axios.post(`${apiUrl}/api/refresh`, { refresh_token: refreshToken });
+            const response = await axios.post(`${apiUrl}/api/refresh`, {
+                refresh_token: refreshToken
+            }, {
+                withCredentials: true,
+            });
+            
             if (response.status === 200) {
                 setTokens(response.data.username, response.data.email, response.data.access_token, response.data.refresh_token, response.data.expire_time, response.data.refresh_expire_time);
                 console.log('Token odświeżony pomyślnie.');

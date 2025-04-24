@@ -106,7 +106,10 @@ const User = () => {
 
     const fetchUserData = async () => {
         try {
-            const response = await authAxios.get(`${apiUrl}/api/user/${username}`);
+            const response = await authAxios.get(`${apiUrl}/api/user/${username}`, {
+                withCredentials: true,
+            });
+
             if (response.status === 200) {
                 setEmail(response.data.email);
                 setAvatarUrl(response.data.avatar_url);
@@ -139,7 +142,10 @@ const User = () => {
             return;
         }
         try {
-            const response = await authAxios.delete(`${apiUrl}/api/delete-account/${username}`);
+            const response = await authAxios.delete(`${apiUrl}/api/delete-account/${username}`, {
+                withCredentials: true,
+            });
+
             if (response.status === 200) {
                 console.log("Usunięto konto pomyślnie");
                 clearTokens();

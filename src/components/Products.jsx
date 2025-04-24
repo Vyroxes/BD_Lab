@@ -20,7 +20,9 @@ const Products = () => {
     const fetchProducts = async () => {
         try 
         {
-            const response = await authAxios.get(`${apiUrl}/api/products`);
+            const response = await authAxios.get(`${apiUrl}/api/products`, {
+                withCredentials: true,
+            });
 
             if (response.status == 200)
             {
@@ -39,6 +41,8 @@ const Products = () => {
         {
             const response = await authAxios.post(`${apiUrl}/api/add-product`, {
                 product: product
+            }, {
+                withCredentials: true,
             });
 
             if (response.status == 201)
@@ -55,7 +59,9 @@ const Products = () => {
 
     const removeProduct = async (id) => {
         try {
-            const response = await authAxios.delete(`${apiUrl}/api/delete-product/${id}`);
+            const response = await authAxios.delete(`${apiUrl}/api/delete-product/${id}`, {
+                withCredentials: true,
+            });
             
             if (response.status === 200)
             {

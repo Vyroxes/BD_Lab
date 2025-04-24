@@ -49,6 +49,8 @@ const Register = ({ onLogin }) => {
                 email,
                 password,
                 password2
+            }, {
+                withCredentials: true,
             });
 
             if (response.status === 201) {

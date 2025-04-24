@@ -21,7 +21,9 @@ const Product = () => {
     const fetchProduct = async () => {
         try 
         {
-            const response = await authAxios.get(`${apiUrl}/api/product/${id}`);
+            const response = await authAxios.get(`${apiUrl}/api/product/${id}`, {
+                withCredentials: true,
+            });
 
             if (response.status == 200)
             {
@@ -40,6 +42,8 @@ const Product = () => {
         {
             const response = await authAxios.patch(`${apiUrl}/api/edit-product/${id}`, {
                 product: productName
+            }, {
+                withCredentials: true,
             });
 
             if (response.status == 200)

@@ -18,7 +18,10 @@ const Header = () => {
         const fetchAvatar = async () => {
             if (username) {
                 try {
-                    const response = await authAxios.get(`${apiUrl}/api/user/${username}`);
+                    const response = await authAxios.get(`${apiUrl}/api/user/${username}`, {
+                        withCredentials: true,
+                    });
+
                     if (response.status === 200) {
                         setAvatarUrl(response.data.avatar_url);
                     }
@@ -44,12 +47,13 @@ const Header = () => {
 
             await authAxios.post(`${apiUrl}/api/logout`, {
                 refresh_token: getCookie("refresh_token")
+            }, {
+                withCredentials: true,
             });
             
-            console.log("Wylogowano pomyślnie");
-            // await authAxios.get(`${apiUrl}/api/clear-session`);
             clearTokens();
             navigate('/login');
+            console.log("Wylogowano pomyślnie");
         } catch (error) {
             console.error("Błąd podczas wylogowania: ", error);
             clearTokens();

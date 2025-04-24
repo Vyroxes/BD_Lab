@@ -23,7 +23,9 @@ const Premium = () => {
     useEffect(() => {
         const checkSubscription = async () => {
             try {
-                const response = await authAxios.get(`${apiUrl}/api/payments/status`);
+                const response = await authAxios.get(`${apiUrl}/api/payments/status`, {
+                    withCredentials: true,
+                });
 
                 if (response.status === 200 && response.data.has_premium) {
                     setSubscription(response.data.subscription);
@@ -52,6 +54,8 @@ const Premium = () => {
 
             const response = await authAxios.post(`${apiUrl}/api/payments/create`, {
                 plan
+            }, {
+                withCredentials: true,
             });
             
             if (response.status === 200 && response.data.payment_url) {
