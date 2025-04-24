@@ -1424,9 +1424,9 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
         
         let payment_url;
         if (plan === 'PREMIUM') {
-            payment_url = 'https://ssl.dotpay.pl/test_payment/?chk=701ceb89da2a764d2f4aff29cee6871fa2f6fb539132d6986d7286c920b91f9c&pid=hiogcoacvzy38qjxf8epzhpf7nathwzt';
+            payment_url = `https://ssl.dotpay.pl/test_payment/?chk=701ceb89da2a764d2f4aff29cee6871fa2f6fb539132d6986d7286c920b91f9c&pid=hiogcoacvzy38qjxf8epzhpf7nathwzt&control=${control}`;
         } else {
-            payment_url = 'https://ssl.dotpay.pl/test_payment/?chk=afcc2f00ba962c499d5d1a7cebfab3900dc1f5e0c2a56fdf55a461004b8036cc&pid=7b87coq0s1qel2agw4sq2bno3nfg6svq';
+            payment_url = `https://ssl.dotpay.pl/test_payment/?chk=afcc2f00ba962c499d5d1a7cebfab3900dc1f5e0c2a56fdf55a461004b8036cc&pid=7b87coq0s1qel2agw4sq2bno3nfg6svq&control=${control}`;
         }
         
         res.status(200).json({ message: "Przekierowanie do systemu płatności.", payment_url: payment_url });
