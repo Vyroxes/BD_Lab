@@ -12,11 +12,13 @@ const Header = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const apiUrl = import.meta.env.VITE_API_URL;
+
     useEffect(() => {
         const fetchAvatar = async () => {
             if (username) {
                 try {
-                    const response = await authAxios.get(`/api/user/${username}`);
+                    const response = await authAxios.get(`${apiUrl}/api/user/${username}`);
                     if (response.status === 200) {
                         setAvatarUrl(response.data.avatar_url);
                     }
@@ -40,13 +42,12 @@ const Header = () => {
                 return;
             }
 
-            await authAxios.post("/api/logout", {
+            await authAxios.post(`${apiUrl}/api/logout`, {
                 refresh_token: getCookie("refresh_token")
             });
             
-            await authAxios.get("/api/clear-session");
             console.log("Wylogowano pomyślnie");
-            await authAxios.get("/api/clear-session");
+            // await authAxios.get(`${apiUrl}/api/clear-session`);
             clearTokens();
             navigate('/login');
         } catch (error) {

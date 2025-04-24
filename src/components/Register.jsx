@@ -30,6 +30,8 @@ const Register = ({ onLogin }) => {
     const specialchar = /[!@#$%^&*(),.?":{}|<>[\]]/;
     const polishChars = /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/;
 
+    const apiUrl = import.meta.env.VITE_API_URL;
+
     useEffect(() => {
         const checkAuth = async () => {
             const result = await isAuthenticated();
@@ -42,7 +44,7 @@ const Register = ({ onLogin }) => {
 
     const onSubmit = async () => {
         try {
-            const response = await authAxios.post("/api/register", {
+            const response = await authAxios.post(`${apiUrl}/api/register`, {
                 username,
                 email,
                 password,

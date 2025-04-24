@@ -17,7 +17,9 @@ const User = () => {
 
     const navigate = useNavigate();
     const currentUsername = getCookie('username');
+
     const adminUsername = import.meta.env.VITE_ADMIN_USERNAME;
+    const apiUrl = import.meta.env.VITE_API_URL;
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -89,7 +91,7 @@ const User = () => {
 
     const fetchUserData = async () => {
         try {
-            const response = await authAxios.get(`/api/user/${username}`);
+            const response = await authAxios.get(`${apiUrl}/api/user/${username}`);
             if (response.status === 200) {
                 setEmail(response.data.email);
                 setAvatarUrl(response.data.avatar_url);
@@ -110,7 +112,7 @@ const User = () => {
             return;
         }
         try {
-            const response = await authAxios.delete(`/api/delete-account/${username}`);
+            const response = await authAxios.delete(`${apiUrl}/api/delete-account/${username}`);
             if (response.status === 200) {
                 console.log("Usunięto konto pomyślnie");
                 clearTokens();

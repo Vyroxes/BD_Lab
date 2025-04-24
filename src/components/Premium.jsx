@@ -18,10 +18,12 @@ const Premium = () => {
     const [subscription, setSubscription] = useState(null);
     const [paymentError, setPaymentError] = useState(null);
 
+    const apiUrl = import.meta.env.VITE_API_URL;
+
     useEffect(() => {
         const checkSubscription = async () => {
             try {
-                const response = await authAxios.get('/api/payments/status');
+                const response = await authAxios.get(`${apiUrl}/api/payments/status`);
 
                 if (response.status === 200 && response.data.has_premium) {
                     setSubscription(response.data.subscription);
@@ -48,7 +50,7 @@ const Premium = () => {
             }
             setPaymentError(null);
 
-            const response = await authAxios.post('/api/payments/create', {
+            const response = await authAxios.post(`${apiUrl}/api/payments/create`, {
                 plan
             });
             

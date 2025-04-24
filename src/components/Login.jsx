@@ -15,6 +15,8 @@ const Login = ({ onLogin }) => {
 
     const navigate = useNavigate();
 
+    const apiUrl = import.meta.env.VITE_API_URL;
+
     useEffect(() => {
         const checkAuth = async () => {
             const result = await isAuthenticated();
@@ -29,7 +31,7 @@ const Login = ({ onLogin }) => {
 
     const onSubmit = async () => {
         try {
-            const response = await authAxios.post("https://bd-lab-2jh5.onrender.com/api/login", {
+            const response = await authAxios.post(`${apiUrl}/api/login`, {
                 usernameOrEmail,
                 password,
                 remember,
@@ -58,11 +60,11 @@ const Login = ({ onLogin }) => {
     };
 
     const handleGithubLogin = () => {
-        window.location.href = "https://bd-lab-2jh5.onrender.com/api/login/github";
+        window.location.href = `${apiUrl}/api/login/github`;
     };
 
     const handleDiscordLogin = () => {
-        window.location.href = "https://bd-lab-2jh5.onrender.com/api/login/discord";
+        window.location.href = `${apiUrl}/api/login/discord`;
     };
 
     const handleSubmit = async (e) => {

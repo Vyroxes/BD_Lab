@@ -15,10 +15,12 @@ const Products = () => {
     const [loading, setLoading] = useState(true);
     const [product, setProduct] = useState("");
 
+    const apiUrl = import.meta.env.VITE_API_URL;
+
     const fetchProducts = async () => {
         try 
         {
-            const response = await authAxios.get(`/api/products`);
+            const response = await authAxios.get(`${apiUrl}/api/products`);
 
             if (response.status == 200)
             {
@@ -35,7 +37,7 @@ const Products = () => {
     const addProduct = async () => {
         try 
         {
-            const response = await authAxios.post(`/api/add-product`, {
+            const response = await authAxios.post(`${apiUrl}/api/add-product`, {
                 product: product
             });
 
@@ -53,7 +55,7 @@ const Products = () => {
 
     const removeProduct = async (id) => {
         try {
-            const response = await authAxios.delete(`/api/delete-product/${id}`);
+            const response = await authAxios.delete(`${apiUrl}/api/delete-product/${id}`);
             
             if (response.status === 200)
             {

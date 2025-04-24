@@ -16,10 +16,12 @@ const Product = () => {
 
     const { id } = useParams();
 
+    const apiUrl = import.meta.env.VITE_API_URL;
+
     const fetchProduct = async () => {
         try 
         {
-            const response = await authAxios.get(`/api/product/${id}`);
+            const response = await authAxios.get(`${apiUrl}/api/product/${id}`);
 
             if (response.status == 200)
             {
@@ -36,7 +38,7 @@ const Product = () => {
     const editProduct = async () => {
         try 
         {
-            const response = await authAxios.patch(`/api/edit-product/${id}`, {
+            const response = await authAxios.patch(`${apiUrl}/api/edit-product/${id}`, {
                 product: productName
             });
 
