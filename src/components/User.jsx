@@ -180,10 +180,10 @@ const User = () => {
             {(username === currentUsername || currentUsername === adminUsername) && (<div className="user-stats">
                 <h2>Informacje użytkownika</h2>
                 <li>Połączony z Github:
-                    <p>{github_id ? `Tak (${github_id})` : "nie"}</p>
+                    <p>{github_id ? `tak (id: ${github_id})` : "nie"}</p>
                 </li>
                 <li>Połączony z Discord:
-                    <p>{discord_id ? `Tak (${discord_id})` : "nie"}</p>
+                    <p>{discord_id ? `tak (id: ${discord_id})` : "nie"}</p>
                 </li>
                 <li>Data utworzenia konta:
                     <p>{accountCreated}</p>
