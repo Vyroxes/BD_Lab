@@ -1222,7 +1222,7 @@ app.get("/api/auth/github", async (req, res, next) => {
             const access_jti = crypto.randomUUID();
             const refresh_jti = crypto.randomUUID();
             const access_token_expiresIn = "00:00:10:00";
-            const refresh_token_expiresIn = remember ? "01:00:00:00" : "00:01:00:00";
+            const refresh_token_expiresIn = "01:00:00:00";
             
             const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: "10m" });
             const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: "1d" });
@@ -1355,7 +1355,7 @@ app.get("/api/auth/discord", async (req, res, next) => {
             const access_jti = crypto.randomUUID();
             const refresh_jti = crypto.randomUUID();
             const access_token_expiresIn = "00:00:10:00";
-            const refresh_token_expiresIn = remember ? "01:00:00:00" : "00:01:00:00";
+            const refresh_token_expiresIn = "01:00:00:00";
             
             const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: "10m" });
             const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: "1d" });
