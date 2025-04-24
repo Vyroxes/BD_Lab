@@ -1459,7 +1459,7 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
             URLC: webhookUrl,
             p_info: user.username,
             p_email: user.email,
-            type: '3'
+            type: '0'
         };
 
         const chk = generateSignature(data, DOTPAY_PIN);
@@ -1474,6 +1474,12 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
 });
+
+app.get('/premium', (req, res) =>
+{
+    const status = req.query.status
+    res.redirect(`https://bd-lab-1.onrender.com/premium?status=${status}`)
+})
 
 /**
  * @swagger

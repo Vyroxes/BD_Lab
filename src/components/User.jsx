@@ -125,7 +125,6 @@ const User = () => {
                 });
                 setAccountCreated(formattedDate);
                 setLoading(false);
-                console.log(response.data);
             } else {
                 navigate('/home');
             }
