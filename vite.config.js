@@ -6,12 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
-    port: '5173',
+    port: 5173,
     proxy: {
       '/api': {
         target: 'https://bd-lab-2jh5.onrender.com',
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
     },
   },

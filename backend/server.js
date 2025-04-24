@@ -1583,7 +1583,7 @@ app.use((req, res) => {
     res.status(404).json({ error: "Nie znaleziono zasobu." });
 });
 
-app.listen(PORT, () => 
+const server = app.listen(PORT, () => 
 {
     const address = server.address();
     const listeningAddress = typeof address === 'string' 
