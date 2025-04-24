@@ -534,9 +534,9 @@ app.post("/api/register", async (req, res) => {
         const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
         const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
 
-        res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
-        res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
-        res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+        res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
+        res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: refreshExpireMs });
+        res.cookie('username', user.username, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
 
         res.status(201).json({ message: "Zarejestrowano pomyślnie.", username: newUser.username, email: newUser.email });
     } catch (error) {
@@ -620,9 +620,9 @@ app.post("/api/login", async (req, res) => {
         const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
         const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
 
-        res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
-        res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
-        res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+        res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
+        res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: refreshExpireMs });
+        res.cookie('username', user.username, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
 
         res.status(200).json({ message: "Zalogowano pomyślnie.", username: user.username, email: user.email });
     } catch (error) {
@@ -734,9 +734,9 @@ app.post("/api/refresh", async (req, res) => {
             const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
             const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
 
-            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
-            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
-            res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
+            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: refreshExpireMs });
+            res.cookie('username', user.username, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
             
             res.status(200).json({ message: "Odświeżono tokeny.", username: user.username, email: user.email });
         } catch (verifyError) {
@@ -1245,9 +1245,9 @@ app.get("/api/auth/github", async (req, res, next) => {
             const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
             const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
 
-            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
-            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
-            res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
+            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: refreshExpireMs });
+            res.cookie('username', user.username, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
 
             return res.redirect("https://bd-lab-1.onrender.com/home");
             
@@ -1384,9 +1384,9 @@ app.get("/api/auth/discord", async (req, res, next) => {
             const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
             const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
 
-            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
-            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
-            res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
+            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: refreshExpireMs });
+            res.cookie('username', user.username, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
 
             return res.redirect("https://bd-lab-1.onrender.com/home");
             
