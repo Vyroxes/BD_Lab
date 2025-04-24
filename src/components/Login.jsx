@@ -35,18 +35,16 @@ const Login = ({ onLogin }) => {
                 usernameOrEmail,
                 password,
                 remember,
-            }, {
-                withCredentials: true
             });
 
             if (response.status === 200) {
-                // setTokens(
-                //     response.data.access_token,
-                //     response.data.refresh_token,
-                //     response.data.expire_time,
-                //     response.data.refresh_expire_time,
-                //     response.data.username,
-                //     response.data.email);
+                setTokens(
+                    response.data.access_token,
+                    response.data.refresh_token,
+                    response.data.expire_time,
+                    response.data.refresh_expire_time,
+                    response.data.username,
+                    response.data.email);
                 onLogin();
                 navigate('/home');
             }

@@ -80,9 +80,9 @@ export const refreshAccessToken = async () => {
         if (isAccessTokenExpiringSoon() || !getAccessToken()) {
             const response = await axios.post(`${apiUrl}/api/refresh`, { refresh_token: refreshToken });
             if (response.status === 200) {
-                // setTokens(response.data.access_token, response.data.refresh_token, response.data.expire_time, response.data.refresh_expire_time, response.data.username, response.data.email);
+                setTokens(response.data.access_token, response.data.refresh_token, response.data.expire_time, response.data.refresh_expire_time, response.data.username, response.data.email);
                 console.log('Token odświeżony pomyślnie.');
-                return getAccessToken();
+                return response.data.access_token;
             }
         }
     } catch (error) {
