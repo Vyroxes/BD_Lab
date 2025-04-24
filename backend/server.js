@@ -1418,43 +1418,33 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
         });
         
         const control = `SUB_${subscription.id}_${user.id}_${Date.now()}`;
-        
+
         subscription.payment_id = control;
         await subscription.save();
 
         const amount = plan === 'PREMIUM' ? '19.99' : '29.99';
         const description = plan === 'PREMIUM' ? 'Pakiet PREMIUM' : 'Pakiet PREMIUM+';
         const returnUrl = encodeURIComponent('https://bd-lab-1.onrender.com/premium');
-        const webhookUrl = encodeURIComponent('https://bd-lab-2jh5.onrender.com/api/payments/webhook');
+        const webhookUrl = encodeURIComponent('https://bd-lab-1.onrender.com/api/payments/webhook');
+        const sellerId = plan === 'PREMIUM' ? 'hiogcoacvzy38qjxf8epzhpf7nathwzt' : '7b87coq0s1qel2agw4sq2bno3nfg6svq';
+        const pinHash = plan === 'PREMIUM' ? '701ceb89da2a764d2f4aff29cee6871fa2f6fb539132d6986d7286c920b91f9c' : 'afcc2f00ba962c499d5d1a7cebfab3900dc1f5e0c2a56fdf55a461004b8036cc';
         
-        let payment_url;
-        if (plan === 'PREMIUM') {
-            payment_url = `https://ssl.dotpay.pl/test_payment/?` + 
-                `chk=701ceb89da2a764d2f4aff29cee6871fa2f6fb539132d6986d7286c920b91f9c` +
-                `&pid=hiogcoacvzy38qjxf8epzhpf7nathwzt` +
-                `&amount=${amount}` +
-                `&currency=PLN` +
-                `&description=${encodeURIComponent(description)}` +
-                `&control=${control}` +
-                `&language=pl` +
-                `&URL=${returnUrl}` +
-                `&urlc=${webhookUrl}` +
-                `&p_info=${encodeURIComponent(user.username)}` +
-                `&p_email=${encodeURIComponent(user.email)}`;
-        } else {
-            payment_url = `https://ssl.dotpay.pl/test_payment/?` + 
-                `chk=afcc2f00ba962c499d5d1a7cebfab3900dc1f5e0c2a56fdf55a461004b8036cc` +
-                `&pid=7b87coq0s1qel2agw4sq2bno3nfg6svq` +
-                `&amount=${amount}` +
-                `&currency=PLN` +
-                `&description=${encodeURIComponent(description)}` +
-                `&control=${control}` +
-                `&language=pl` +
-                `&URL=${returnUrl}` +
-                `&urlc=${webhookUrl}` +
-                `&p_info=${encodeURIComponent(user.username)}` +
-                `&p_email=${encodeURIComponent(user.email)}`;
-        }
+        const params = new URLSearchParams({
+            api_version: 'dev',
+            id: sellerId,
+            amount,
+            currency: 'PLN',
+            description: encodeURIComponent(description),
+            control,
+            language: 'pl',
+            URL: returnUrl,
+            urlc: webhookUrl,
+            p_info: encodeURIComponent(user.username),
+            p_email: encodeURIComponent(user.email),
+            chk: pinHash
+        });
+        
+        const payment_url = `https://ssl.dotpay.pl/t2/?${params.toString()}`;
         
         res.status(200).json({ message: "Przekierowanie do systemu płatności.", payment_url: payment_url });
         
