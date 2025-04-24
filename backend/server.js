@@ -1459,8 +1459,6 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
             URLC: webhookUrl,
             p_info: user.username,
             p_email: user.email,
-            bylaw: '1',
-            personal_data: '1',
             type: '4'
         };
 
