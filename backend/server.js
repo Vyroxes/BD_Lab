@@ -25,22 +25,12 @@ const REFRESH_TOKEN_KEY = process.env.REFRESH_TOKEN_KEY;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-// const ORIGIN = process.env.ORIGIN;
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
     message: { error: "Zbyt wiele żądań, spróbuj ponownie później." }
 });
-
-passport.use(new DiscordStrategy({
-    clientID: process.env.DISCORD_CLIENT_ID,
-    clientSecret: process.env.DISCORD_CLIENT_SECRET,
-    callbackURL: process.env.DISCORD_CALLBACK_URL,
-    scope: ['identify', 'email']
-}, async (accessToken, refreshToken, profile, done) => {
-    return done(null, profile);
-}));
 
 passport.use(new GitHubStrategy({
     clientID: process.env.GITHUB_CLIENT_ID,
@@ -49,6 +39,15 @@ passport.use(new GitHubStrategy({
     scope: ['user:email']
 }, async (accessToken, refreshToken, profile, done) => {
     return done(null, { profile, accessToken });
+}));
+
+passport.use(new DiscordStrategy({
+    clientID: process.env.DISCORD_CLIENT_ID,
+    clientSecret: process.env.DISCORD_CLIENT_SECRET,
+    callbackURL: process.env.DISCORD_CALLBACK_URL,
+    scope: ['identify', 'email']
+}, async (accessToken, refreshToken, profile, done) => {
+    return done(null, profile);
 }));
 
 passport.serializeUser((user, done) => done(null, user));
@@ -61,19 +60,15 @@ app.use(helmet());
 
 app.use(
     cors({
-            credentials: true,
-            // origin: ORIGIN,
-            origin: (origin, callback) => {
-                if (!origin || origin.startsWith('http://192.168.') || origin.startsWith('http://localhost') || origin.startsWith('https://bd-lab-')) {
-                    callback(null, true);
-                } else {
-                    callback(new Error('Nieautoryzowany dostęp z tego źródła.'));
-                }
-            },
-            methods: ["OPTIONS", "GET", "POST", "PATCH", "DELETE"],
-            allowedHeaders: ["Content-Type", "Authorization"]
+        credentials: true,
+        origin: ["https://bd-lab-1.onrender.com", "http://localhost:5173", "http://192.168.0.1:5173"],
+        methods: ["OPTIONS", "GET", "POST", "PATCH", "DELETE"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        optionsSuccessStatus: 200
     })
 );
+
+app.options('*', cors());
 
 app.use((req, res, next) => {
     const allowedMethods = ["OPTIONS", "GET", "POST", "PATCH", "DELETE"];
