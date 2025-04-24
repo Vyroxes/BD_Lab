@@ -766,15 +766,6 @@ app.get("/api/clear-session", async (req, res) => {
 app.get("/api/products", jwtAuth, async (req, res) => 
 {
     try {
-        const cookies = req.headers['cookie'];
-        const match = cookies.match(/access_token=([^;]+)/);
-        const access_token = match[1];
-        const decoded_token = jwt.verify(access_token, ACCESS_TOKEN_KEY);
-        console.log('======================');
-        console.log("Access token: ", access_token);
-        console.log("Decoded token: ", decoded_token);
-        console.log('======================');
-
         const user = await User.findByPk(req.user.id);
         if (!user) {
             return res.status(404).json({ error: "Użytkownik nie znaleziony." });
@@ -1586,10 +1577,7 @@ app.use((req, res) => {
 const server = app.listen(PORT, () => 
 {
     const address = server.address();
-    const listeningAddress = typeof address === 'string' 
-        ? address 
-        : `${ADDRESS}:${address.port}`;
     
-    console.log(`Serwer działa na ${listeningAddress}`);
-    console.log(`Dokumentacja API: ${listeningAddress}${SWAGGER}`);
+    console.log(`Serwer działa na ${address}:${PORT}`);
+    console.log(`Dokumentacja API: ${address}:${PORT}${SWAGGER}`);
 });
