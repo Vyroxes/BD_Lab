@@ -9,7 +9,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://bd-lab-2jh5.onrender.com:5000',
+        target: 'https://bd-lab-2jh5.onrender.com',
         changeOrigin: true,
         secure: false,
       },
