@@ -1092,7 +1092,7 @@ app.get("/api/auth/github", async (req, res, next) => {
     try {
         if (req.query.error === "access_denied") {
             res.clearCookie("session");
-            return res.redirect("http://localhost:5173/login");
+            return res.redirect("https://bd-lab-1.onrender.com/login");
         }
 
         passport.authenticate('github', async (err, authData) => {
@@ -1228,7 +1228,7 @@ app.get("/api/auth/github", async (req, res, next) => {
             res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
             res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
 
-            return res.redirect("http://localhost:5173/home");
+            return res.redirect("https://bd-lab-1.onrender.com/home");
             
         })(req, res, next);
     } catch (error) {
@@ -1287,7 +1287,7 @@ app.get("/api/auth/discord", async (req, res, next) => {
     try {
         if (req.query.error === "access_denied") {
             res.clearCookie("session");
-            return res.redirect("http://localhost:5173/login");
+            return res.redirect("https://bd-lab-1.onrender.com/login");
         }
 
         passport.authenticate('discord', async (err, discordUser) => {
@@ -1367,7 +1367,7 @@ app.get("/api/auth/discord", async (req, res, next) => {
             res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
             res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
 
-            return res.redirect("http://localhost:5173/home");
+            return res.redirect("https://bd-lab-1.onrender.com/home");
             
         })(req, res, next);
     } catch (error) {
