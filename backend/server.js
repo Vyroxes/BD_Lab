@@ -522,16 +522,23 @@ app.post("/api/register", async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        const newUser = await User.create({ username, email, password: hashedPassword });
+        const user = await User.create({ username, email, password: hashedPassword });
 
         const access_jti = crypto.randomUUID();
         const refresh_jti = crypto.randomUUID();
-        const access_token_expiresIn = "00:00:10:00";
-        const refresh_token_expiresIn = "00:01:00:00";
-        const access_token = jwt.sign({ id: newUser.id, username: newUser.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
-        const refresh_token = jwt.sign({ id: newUser.id, username: newUser.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: '1h' });
+        const access_token_expiresIn = "10m";
+        const refresh_token_expiresIn = "1h";
+        const accessExpireMs = 10 * 60 * 1000;
+        const refreshExpireMs = 60 * 60 * 1000; 
+        
+        const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
+        const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
 
-        res.status(201).json({ message: "Zarejestrowano pomyślnie.", username: newUser.username, email: newUser.email, access_token: access_token, refresh_token: refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString()});
+        res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+        res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
+        res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+
+        res.status(201).json({ message: "Zarejestrowano pomyślnie.", username: newUser.username, email: newUser.email });
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
@@ -605,12 +612,19 @@ app.post("/api/login", async (req, res) => {
 
         const access_jti = crypto.randomUUID();
         const refresh_jti = crypto.randomUUID();
-        const access_token_expiresIn = "00:00:10:00";
-        const refresh_token_expiresIn = remember ? "01:00:00:00" : "00:01:00:00";
-        const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
-        const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: remember ? '1d' : '1h' });
+        const access_token_expiresIn = "10m";
+        const refresh_token_expiresIn = remember ? "1d" : "1h";
+        const accessExpireMs = 10 * 60 * 1000;
+        const refreshExpireMs = remember ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000; 
+        
+        const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
+        const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
 
-        res.status(200).json({ message: "Zalogowano pomyślnie.", username: user.username, email: user.email, access_token: access_token, refresh_token: refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString()});
+        res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+        res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
+        res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+
+        res.status(200).json({ message: "Zalogowano pomyślnie.", username: user.username, email: user.email });
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
@@ -712,12 +726,19 @@ app.post("/api/refresh", async (req, res) => {
 
             const access_jti = crypto.randomUUID();
             const refresh_jti = crypto.randomUUID();
-            const access_token_expiresIn = "00:00:10:00";
-            const refresh_token_expiresIn = "00:01:00:00";
-            const new_access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
-            const new_refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: '1h' });
+            const access_token_expiresIn = "10m";
+            const refresh_token_expiresIn = "1h";
+            const accessExpireMs = 10 * 60 * 1000;
+            const refreshExpireMs = 60 * 60 * 1000; 
             
-            res.status(200).json({ message: "Odświeżono tokeny.", username: user.username, email: user.email, access_token: new_access_token, refresh_token: new_refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString() });
+            const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
+            const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
+
+            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
+            res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+            
+            res.status(200).json({ message: "Odświeżono tokeny.", username: user.username, email: user.email });
         } catch (verifyError) {
             return res.status(401).json({ error: "Nieprawidłowy refresh token." });
         }
