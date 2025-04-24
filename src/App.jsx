@@ -44,7 +44,7 @@ const App = () => {
           <Route path="/product/:id" element={authState ? <Product/> : <Navigate to="/login" />}/>
           <Route path="/premium" element={authState ? <Premium/> : <Navigate to="/login" />}/>
           <Route path="/users/:username" element={authState ? <User/> : <Navigate to="/login" />}/>
-          <Route path="*" element={<Navigate to="/home"/>}/>
+          <Route path="*" element={<Navigate to="/login"/>}/>
         </Routes>
         {location.pathname !== '/login' && location.pathname !== '/register' && (<Footer/>)}
       </div>
