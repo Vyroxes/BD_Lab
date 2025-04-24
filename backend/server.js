@@ -25,6 +25,8 @@ const REFRESH_TOKEN_KEY = process.env.REFRESH_TOKEN_KEY;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const DOTPAY_ID = process.env.DOTPAY_ID;
+const DOTPAY_PIN = process.env.DOTPAY_PIN;
 
 app.use(
     cors({
@@ -1416,35 +1418,54 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
             end_date: endDate,
             status: 'PENDING'
         });
-        
-        const control = `SUB_${subscription.id}_${user.id}_${Date.now()}`;
 
+        function generateSignature(params, pin)
+        {
+            const kolejnosc = [
+                'api_version', 'charset', 'lang', 'id', 'amount', 'currency',
+                'description', 'control', 'channel', 'ch_lock', 'URL', 'type', 'buttontext',
+                'URLC', 'firstname', 'lastname', 'email', 'street', 'street_n1',
+                'street_n2', 'state', 'addr3', 'city', 'postcode', 'phone', 'country',
+                'code', 'p_info', 'p_email', 'n_email', 'expiration_date', 'deladdr',
+                'recipient_account_number', 'recipient_company', 'recipient_first_name',
+                'recipient_last_name', 'recipient_street', 'recipient_postcode',
+                'recipient_city', 'application', 'application_version', 'sdk_version',
+                'customer', 'payer'
+            ];
+
+            const wartosci = kolejnosc.map(klucz => params[klucz] || '');
+            const ciag = pin + wartosci.join('');
+            return crypto.createHash('sha256').update(ciag).digest('hex');
+        }
+
+        const control = `SUB_${subscription.id}_${user.id}_${Date.now()}`;
         subscription.payment_id = control;
         await subscription.save();
 
         const amount = plan === 'PREMIUM' ? '19.99' : '29.99';
         const description = plan === 'PREMIUM' ? 'Pakiet PREMIUM' : 'Pakiet PREMIUM+';
-        const returnUrl = encodeURIComponent('https://bd-lab-1.onrender.com/premium');
-        const webhookUrl = encodeURIComponent('https://bd-lab-1.onrender.com/api/payments/webhook');
-        const sellerId = plan === 'PREMIUM' ? 'hiogcoacvzy38qjxf8epzhpf7nathwzt' : '7b87coq0s1qel2agw4sq2bno3nfg6svq';
-        const pinHash = plan === 'PREMIUM' ? '701ceb89da2a764d2f4aff29cee6871fa2f6fb539132d6986d7286c920b91f9c' : 'afcc2f00ba962c499d5d1a7cebfab3900dc1f5e0c2a56fdf55a461004b8036cc';
-        
-        const params = new URLSearchParams({
+
+        const returnUrl = 'https://bd-lab-1.onrender.com/premium';
+        const webhookUrl = 'https://bd-lab-1.onrender.com/api/payments/webhook';
+
+        const data = {
             api_version: 'dev',
-            id: sellerId,
+            id: DOTPAY_ID,
             amount,
             currency: 'PLN',
-            description: encodeURIComponent(description),
+            description,
             control,
-            language: 'pl',
             URL: returnUrl,
-            urlc: webhookUrl,
-            p_info: encodeURIComponent(user.username),
-            p_email: encodeURIComponent(user.email),
-            chk: pinHash
-        });
-        
-        const payment_url = `https://ssl.dotpay.pl/t2/?${params.toString()}`;
+            URLC: webhookUrl,
+            p_info: user.username,
+            p_email: user.email
+        };
+
+        const chk = generateSignature(data, DOTPAY_PIN);
+        data.chk = chk;
+
+        const params = new URLSearchParams(data);
+        const payment_url = `https://ssl.dotpay.pl/test_payment/?${params.toString()}`;
         
         res.status(200).json({ message: "Przekierowanie do systemu płatności.", payment_url: payment_url });
         
