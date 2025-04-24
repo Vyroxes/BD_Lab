@@ -1224,9 +1224,9 @@ app.get("/api/auth/github", async (req, res, next) => {
             const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
             const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
 
-            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
-            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
-            res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
+            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: refreshExpireMs });
+            res.cookie('username', user.username, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
 
             return res.redirect("https://bd-lab-1.onrender.com/home");
             
@@ -1363,9 +1363,9 @@ app.get("/api/auth/discord", async (req, res, next) => {
             const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: access_token_expiresIn });
             const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: refresh_token_expiresIn });
 
-            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
-            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: refreshExpireMs });
-            res.cookie('username', user.username, { httpOnly: false, sameSite: 'Lax', secure: true, maxAge: accessExpireMs });
+            res.cookie('access_token', access_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
+            res.cookie('refresh_token', refresh_token, { httpOnly: false, sameSite: 'None', secure: true, maxAge: refreshExpireMs });
+            res.cookie('username', user.username, { httpOnly: false, sameSite: 'None', secure: true, maxAge: accessExpireMs });
 
             return res.redirect("https://bd-lab-1.onrender.com/home");
             
