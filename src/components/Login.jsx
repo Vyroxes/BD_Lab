@@ -29,7 +29,7 @@ const Login = ({ onLogin }) => {
 
     const onSubmit = async () => {
         try {
-            const response = await authAxios.post("/api/login", {
+            const response = await authAxios.post("https://bd-lab-2jh5.onrender.com/api/login", {
                 usernameOrEmail,
                 password,
                 remember,
@@ -58,11 +58,11 @@ const Login = ({ onLogin }) => {
     };
 
     const handleGithubLogin = () => {
-        window.location.href = "/api/login/github";
+        window.location.href = "https://bd-lab-2jh5.onrender.com/api/login/github";
     };
 
     const handleDiscordLogin = () => {
-        window.location.href = "/api/login/discord";
+        window.location.href = "https://bd-lab-2jh5.onrender.com/api/login/discord";
     };
 
     const handleSubmit = async (e) => {
