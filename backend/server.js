@@ -1442,7 +1442,7 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
         subscription.payment_id = control;
         await subscription.save();
 
-        const amount = plan === 'PREMIUM' ? '19.99' : '29.99';
+        const amount = plan === 'PREMIUM' ? '19.99' : '34.99';
         const description = plan === 'PREMIUM' ? 'Pakiet PREMIUM' : 'Pakiet PREMIUM+';
 
         const returnUrl = 'https://bd-lab-1.onrender.com/premium';
