@@ -1,6 +1,8 @@
 .container-login {
     padding: 20px;
     min-height: calc(100vh - 40px);
+    min-height: -webkit-fill-available;
+    height: -webkit-fill-available;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -283,9 +285,6 @@
 }
 
 @media (max-aspect-ratio: 9/16) {
-    .container-login {
-        height: 100%;
-    }
     .login-button-show-password {
         right: 16px;
     }
