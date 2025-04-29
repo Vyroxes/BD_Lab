@@ -1,6 +1,10 @@
 .user-container {
     margin: 0 auto;
     padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .user-container h1 {
@@ -89,7 +93,6 @@
     background: rgba(30, 30, 30, 0.6);
     padding: 20px;
     border-radius: 15px;
-    width: 50vw;
     text-align: left;
     box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2);
     border-left: 4px solid #4caf50;
@@ -248,72 +251,12 @@
     100% { transform: scale(1); opacity: 0.8; }
 }
 
-@media (max-width: 768px) {
-    .user-container {
-        padding: 20px;
-        margin: 20px 10px;
-    }
-    
-    .user-avatar {
-        width: 150px;
-        height: 150px;
-    }
-    
-    .user-header h1 {
-        font-size: 2rem;
-    }
-    
-    .user-header p {
-        font-size: 1.1rem;
-    }
-    
-    .user-stats {
-        padding: 15px;
-    }
-    
-    .user-stats h2 {
-        font-size: 1.5rem;
-    }
-    
+@media (max-aspect-ratio: 9/16) {
     .user-stats li {
-        font-size: 1.1rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .user-container {
-        padding: 15px;
-    }
-    
-    .user-avatar {
-        width: 120px;
-        height: 120px;
-        border-width: 3px;
-    }
-    
-    .user-header h1 {
-        font-size: 1.7rem;
-    }
-    
-    .user-header p {
-        font-size: 1rem;
-    }
-    
-    .user-actions {
+        display: flex;
         flex-direction: column;
-        gap: 10px;
-    }
-    
-    .user-actions button {
-        width: 100%;
-    }
-    
-    .user-stats h2 {
-        font-size: 1.3rem;
-    }
-    
-    .user-stats li {
-        font-size: 1rem;
-        margin-bottom: 8px;
+        align-items: center;
+        justify-content: center;
+        font-size: medium;
     }
 }

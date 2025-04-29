@@ -279,3 +279,20 @@
     0% { background-position: -100% 0; }
     100% { background-position: 100% 0; }
 }
+
+@media (max-aspect-ratio: 9/16) {
+    .container-login {
+        height: 100vh;
+        padding: 0 40px;
+        font-size: medium;
+    }
+    .login-group input {
+        width: auto !important;
+    }
+    .login-button-show-password {
+        right: 16px;
+    }
+    .login-actions label, .login-socials label, .login-register label, .register-login label{
+        font-size: medium;
+    }
+}

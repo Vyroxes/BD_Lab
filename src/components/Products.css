@@ -87,7 +87,7 @@
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    gap: 10px;
+    gap: 20px;
     animation: fadeIn 1s ease-out forwards;
 }
 
@@ -124,11 +124,29 @@
 
 @keyframes expandLine {
     from { width: 0; }
-    to { width: 98vw; }
+    to { width: calc(100vw - 40px) }
 }
 
 @keyframes pulseBg {
     0% { opacity: 0; }
     50% { opacity: 1; }
     100% { opacity: 0; }
+}
+
+
+@media (max-aspect-ratio: 9/16) {
+    .products-list {
+        width: 90%;
+    }
+    .products-list-product {
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+        min-width: unset; 
+        gap: 5px;
+    }
+    .products-list-product a {
+        margin-left: 0;
+        width: auto;
+    }
 }

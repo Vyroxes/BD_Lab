@@ -209,7 +209,7 @@
 
 @keyframes expandLine {
     from { width: 0; }
-    to { width: 98vw; }
+    to { width: calc(100vw - 40px); }
 }
 
 @keyframes fadeIn {
@@ -239,9 +239,8 @@
     }
 }
 
-@media (max-width: 1244px) {
-    .premium-content,
-    .premiumplus-content {
-        max-width: 80vw;
+@media (max-width: 890px) {
+    .premium-cards {
+        flex-direction: column;
     }
 }

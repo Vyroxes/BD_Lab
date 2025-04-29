@@ -190,24 +190,27 @@ const User = () => {
                 </li>
                 {currentUsername === adminUsername && (<>
                     <h2>Informacje administratora</h2>
-                    <li>Access token:</li>
-                    <textarea readOnly value={getCookie("access_token") || "brak"}></textarea>
+                    <li>Access token:
+                        <textarea readOnly value={getCookie("access_token") || "brak"}></textarea>
+                    </li>
                     <li>Wygaśnięcie access tokenu:
                         <p>{accessTokenExpiration || "brak"}</p>
                     </li>
                     <li>Czas do wygaśnięcia access tokenu:
                         <p>{timeToAccessTokenExpire || "brak"}</p>
                     </li>
-                    <li>Refresh token:</li>
-                    <textarea readOnly value={getCookie("refresh_token") || "brak"}></textarea>
+                    <li>Refresh token:
+                        <textarea readOnly value={getCookie("refresh_token") || "brak"}></textarea>
+                    </li>
                     <li>Wygaśnięcie refresh tokenu:
                         <p>{refreshTokenExpiration || "brak"}</p>
                     </li>
                     <li>Czas do wygaśnięcia refresh tokenu:
                         <p>{timeToRefreshTokenExpire}</p>
                     </li>
-                    <li>Session token:</li>
-                    <textarea readOnly value={getCookie("session") || "brak"}></textarea>
+                    <li>Session token:
+                        <textarea readOnly value={getCookie("session") || "brak"}></textarea>
+                    </li>
                 </>)}
             </div>
             )}
