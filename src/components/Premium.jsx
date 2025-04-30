@@ -43,6 +43,7 @@ const Premium = () => {
                     withCredentials: true,
                 });
 
+                console.log(response.data);
                 if (response.status === 200 && response.data.has_premium) {
                     setSubscription(response.data.subscription);
                     setStatus(true);

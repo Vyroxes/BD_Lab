@@ -577,10 +577,6 @@ app.post("/api/register", async (req, res) => {
 */
 
 app.post("/api/login", async (req, res) => {
-    console.log('Login attempt:', req.body.usernameOrEmail);
-    console.log('Client origin:', req.headers.origin);
-    console.log('Client IP:', req.ip);
-
     try {
         const { usernameOrEmail, password, remember } = req.body;
 
@@ -1502,6 +1498,7 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
 
 app.post("/api/payments/webhook", async (req, res) => {
     try {
+        console.log("Webhook Dotpay: ", req.body);
         const {
             operation_number,
             operation_type,
@@ -1536,7 +1533,7 @@ app.post("/api/payments/webhook", async (req, res) => {
                     if (subscription) {
                         subscription.status = "ACTIVE";
                         await subscription.save();
-                        console.log(`Aktywowano subskrypcję ID: ${subscriptionId}`);
+                        console.log(`Aktywowano subskrypcję ID: ${subscriptionId}.`);
                     }
                 }
             } 
