@@ -17,9 +17,7 @@ import rateLimit from "express-rate-limit";
 dotenv.config({path: "../.env"});
 
 const app = express();
-const ADDRESS = process.env.ADDRESS;
-const PORT = process.env.PORT;
-const SWAGGER = process.env.SWAGGER;
+const VITE_API_URL = process.env.VITE_API_URL;
 const ACCESS_TOKEN_KEY = process.env.ACCESS_TOKEN_KEY;
 const REFRESH_TOKEN_KEY = process.env.REFRESH_TOKEN_KEY;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
@@ -341,7 +339,7 @@ const swaggerOptions = {
                 url: "https://opensource.org/licenses/MIT"
             }
         },
-        servers: [{ url: `${ADDRESS}${PORT}` }],
+        servers: [{ url: `${VITE_API_URL}` }],
         components: {
             securitySchemes: {
                 BearerAuth: {
@@ -361,7 +359,7 @@ const swaggerOptions = {
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
-app.use(SWAGGER, swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 /**
  * @swagger
@@ -1632,10 +1630,11 @@ app.use((req, res) => {
     res.status(404).json({ error: "Nie znaleziono zasobu." });
 });
 
-const server = app.listen(PORT, '0.0.0.0', () => 
+const server = app.listen(5000, '0.0.0.0', () => 
 {
     const address = server.address().address;
+    const port = server.address().port;
     
-    console.log(`Serwer działa na ${address}:${PORT}`);
-    console.log(`Dokumentacja API: ${address}:${PORT}${SWAGGER}`);
+    console.log(`Serwer działa na ${address}:${port}`);
+    console.log(`Dokumentacja API: ${address}:${port}/api-docs`);
 });
