@@ -1486,7 +1486,7 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
             URLC: webhookUrl,
             p_info: user.username,
             p_email: user.email,
-            type: '3'
+            type: '4'
         };
 
         const chk = generateSignature(data, DOTPAY_PIN);
@@ -1579,10 +1579,10 @@ app.post("/api/payments/webhook", async (req, res) => {
             return res.status(403).json({ error: "Nieprawidłowy podpis." });
         }
         
-        if (operation_original_amount !== req.body.amount || operation_original_currency !== req.body.currency) {
-            console.error("Kwota lub waluta niezgodna z oczekiwaną!");
-            return res.status(400).json({ error: "Niezgodna kwota lub waluta." });
-        }
+        // if (operation_original_amount !== req.body.amount || operation_original_currency !== req.body.currency) {
+        //     console.error("Kwota lub waluta niezgodna z oczekiwaną!");
+        //     return res.status(400).json({ error: "Niezgodna kwota lub waluta." });
+        // }
 
         if (operation_status === "completed" && operation_type === "payment") {
             if (control && control.includes('_')) {
