@@ -68,13 +68,13 @@ const Header = () => {
                     <li className={location.pathname === "/home" ? "active" : ""}>
                         <a href="/home">STRONA GŁÓWNA</a>
                     </li>
-                    <li className={location.pathname === "/products" ? "active" : ""}>
+                    <li className={location.pathname.startsWith("/product") ? "active" : ""}>
                         <a href="/products">PRODUKTY</a>
                     </li>
-                    <li className={location.pathname === "/premium" ? "active" : ""}>
+                    <li className={location.pathname.startsWith("/premium") ? "active" : ""}>
                         <a href="/premium">PREMIUM</a>
                     </li>
-                    <li className={location.pathname === `/user` ? "active" : ""}>
+                    <li className={location.pathname.startsWith(`/user`) ? "active" : ""}>
                         <a href={`/users/${username}`}>
                             <img
                                 src={avatarUrl || "/unknown_avatar.jpg"}

@@ -23,9 +23,12 @@ export const setTokens = (username, email, accessToken, refreshToken, accessToke
     refreshTokenExpireDate.setMinutes(refreshTokenExpireDate.getMinutes() + rMinutes);
     refreshTokenExpireDate.setSeconds(refreshTokenExpireDate.getSeconds() + rSeconds);
 
-    document.cookie = `${TOKEN_KEY}=${accessToken}; path=/; secure; expires=${accessTokenExpireDate.toUTCString()};`;
-    document.cookie = `${REFRESH_TOKEN_KEY}=${refreshToken}; path=/; secure; expires=${refreshTokenExpireDate.toUTCString()};`;
-    document.cookie = `${USERNAME_KEY}=${username}; path=/; secure; expires=${accessTokenExpireDate.toUTCString()};`;
+    const isSecure = window.location.protocol === 'https:';
+    const secureFlag = isSecure ? 'secure;' : '';
+
+    document.cookie = `${TOKEN_KEY}=${accessToken}; path=/; ${secureFlag} SameSite=Lax; expires=${accessTokenExpireDate.toUTCString()};`;
+    document.cookie = `${REFRESH_TOKEN_KEY}=${refreshToken}; path=/; ${secureFlag} SameSite=Lax; expires=${refreshTokenExpireDate.toUTCString()};`;
+    document.cookie = `${USERNAME_KEY}=${username}; path=/; ${secureFlag} SameSite=Lax; expires=${accessTokenExpireDate.toUTCString()};`;
 };
 
 export const getCookie = (name) => {

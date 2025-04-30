@@ -21,7 +21,7 @@
 
 .register-button-show-password {
     position: absolute;
-    right: 22px;
+    right: 12px;
     top: 50%;
     transform: translateY(-50%) !important;
     background: transparent !important;

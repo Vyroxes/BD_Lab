@@ -1,6 +1,6 @@
 .container-login {
     padding: 20px;
-    min-height: calc(100vh - 40px);
+    min-height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -9,7 +9,8 @@
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
     animation: fadeIn 1s ease forwards;
     position: relative;
-    overflow-x: hidden;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .container-login h1 {
@@ -30,7 +31,7 @@
 .container-login input[type="text"],
 .container-login input[type="email"],
 .container-login input[type="password"] {
-    width: 280px;
+    width: 100%;
     margin-left: 10px;
 }
 
@@ -39,11 +40,13 @@
 }
 
 .container-login2 {
-    width: 380px;
+    width: 100%;
+    max-width: 400px;
     padding: 2rem;
     border-radius: 30px;
     background-color: rgba(17, 17, 17, 0.97);
     position: relative;
+    box-sizing: border-box;
 }
 
 @property --angle {
@@ -114,7 +117,7 @@
 
 .login-button-show-password {
     position: absolute;
-    right: 22px;
+    right: 12px;
     top: 50%;
     transform: translateY(-50%) !important;
     background: transparent !important;
@@ -283,8 +286,14 @@
 }
 
 @media (max-aspect-ratio: 9/16) {
-    .login-button-show-password {
-        right: 16px;
+    .container-login2 {
+        padding: 1.5rem;
+    }
+    .container-login h1 {
+        font-size: xx-large;
+    }
+    .login-group input {
+        width: 100%;
     }
     .login-actions label, .login-socials label, .login-register label, .register-login label{
         font-size: medium;

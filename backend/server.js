@@ -31,7 +31,10 @@ const DOTPAY_PIN = process.env.DOTPAY_PIN;
 app.use(
     cors({
         credentials: true,
-        origin: ["https://bd-lab-1.onrender.com", "http://localhost:5173", "http://192.168.0.1:5173", "https://github.com", "https://discord.com"],
+        // origin: function(origin, callback) {
+        //     callback(null, true);
+        // },
+        origin: ["https://bd-lab-1.onrender.com", "http://localhost:5173", "http://192.168.1.5:5173", "https://github.com", "https://discord.com"],
         methods: ["OPTIONS", "GET", "POST", "PATCH", "DELETE"],
         allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
         exposedHeaders: ["Content-Length", "Content-Type"],
@@ -576,6 +579,10 @@ app.post("/api/register", async (req, res) => {
 */
 
 app.post("/api/login", async (req, res) => {
+    console.log('Login attempt:', req.body.usernameOrEmail);
+    console.log('Client origin:', req.headers.origin);
+    console.log('Client IP:', req.ip);
+
     try {
         const { usernameOrEmail, password, remember } = req.body;
 
@@ -1625,9 +1632,9 @@ app.use((req, res) => {
     res.status(404).json({ error: "Nie znaleziono zasobu." });
 });
 
-const server = app.listen(PORT, () => 
+const server = app.listen(PORT, '0.0.0.0', () => 
 {
-    const address = server.address();
+    const address = server.address().address;
     
     console.log(`Serwer działa na ${address}:${PORT}`);
     console.log(`Dokumentacja API: ${address}:${PORT}${SWAGGER}`);
