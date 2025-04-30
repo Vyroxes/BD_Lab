@@ -1410,19 +1410,50 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
             return res.status(404).json({ error: "Nie znaleziono użytkownika." });
         }
         
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + 30);
-        
-        const subscription = await Subscription.create({
-            UserId: user.id,
-            plan,
-            end_date: endDate,
-            status: 'PENDING'
+        const existingPendingSubscription = await Subscription.findOne({
+            where: {
+                UserId: user.id,
+                plan: plan,
+                status: 'PENDING',
+                createdAt: {
+                    [Op.gt]: new Date(Date.now() - 24 * 60 * 60 * 1000)
+                }
+            },
+            order: [['createdAt', 'DESC']]
         });
+        
+        let subscription;
+        let control;
+        
+        if (existingPendingSubscription) {
+            subscription = existingPendingSubscription;
+            
+            if (existingPendingSubscription.payment_id) {
+                control = existingPendingSubscription.payment_id;
+            } else {
+                control = `SUB_${subscription.id}_${user.id}`;
+                subscription.payment_id = control;
+                await subscription.save();
+            }
+        } else {
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() + 30);
+            
+            subscription = await Subscription.create({
+                UserId: user.id,
+                plan,
+                end_date: endDate,
+                status: 'PENDING'
+            });
+            
+            control = `SUB_${subscription.id}_${user.id}`;
+            subscription.payment_id = control;
+            await subscription.save();
+        }
 
         function generateSignature(params, pin)
         {
-            const kolejnosc = [
+            const parameterOrder = [
                 'api_version', 'charset', 'lang', 'id', 'amount', 'currency',
                 'description', 'control', 'channel', 'ch_lock', 'URL', 'type', 'buttontext',
                 'URLC', 'firstname', 'lastname', 'email', 'street', 'street_n1',
@@ -1434,14 +1465,10 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
                 'customer', 'payer'
             ];
 
-            const wartosci = kolejnosc.map(klucz => params[klucz] || '');
-            const ciag = pin + wartosci.join('');
-            return crypto.createHash('sha256').update(ciag).digest('hex');
+            const values = parameterOrder.map(key => params[key] || '');
+            const concatenatedString = pin + values.join('');
+            return crypto.createHash('sha256').update(concatenatedString).digest('hex');
         }
-
-        const control = `SUB_${subscription.id}_${user.id}_${Date.now()}`;
-        subscription.payment_id = control;
-        await subscription.save();
 
         const amount = plan === 'PREMIUM' ? '19.99' : '34.99';
         const description = plan === 'PREMIUM' ? 'Pakiet PREMIUM' : 'Pakiet PREMIUM+';
@@ -1469,7 +1496,11 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
         const params = new URLSearchParams(data);
         const payment_url = `https://ssl.dotpay.pl/test_payment/?${params.toString()}`;
         
-        res.status(200).json({ message: "Przekierowanie do systemu płatności.", payment_url: payment_url });
+        res.status(200).json({ 
+            message: "Przekierowanie do systemu płatności.", 
+            payment_url: payment_url,
+            subscription_id: subscription.id 
+        });
         
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
