@@ -1446,14 +1446,13 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
                 status: 'PENDING'
             });
             
-            const timestamp = Date.now();
-            control = `SUB_${subscription.id}_${user.id}_${timestamp}`;
+            control = `SUB_${subscription.id}_${user.id}`;
             subscription.payment_id = control;
             await subscription.save();
         }
 
         function generateSignature(params, pin) {
-            const kolejnosc = [
+            const parameterOrder = [
                 'api_version', 'charset', 'lang', 'id', 'amount', 'currency',
                 'description', 'control', 'channel', 'ch_lock', 'URL', 'type', 'buttontext',
                 'URLC', 'firstname', 'lastname', 'email', 'street', 'street_n1',
@@ -1465,9 +1464,9 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
                 'customer', 'payer'
             ];
 
-            const wartosci = kolejnosc.map(klucz => params[klucz] || '');
-            const ciag = pin + wartosci.join('');
-            return crypto.createHash('sha256').update(ciag).digest('hex');
+            const values = parameterOrder.map(key => params[key] || '');
+            const concatenatedString = pin + values.join('');
+            return crypto.createHash('sha256').update(concatenatedString).digest('hex');
         }
 
         const amount = plan === 'PREMIUM' ? '19.99' : '34.99';
@@ -1482,7 +1481,7 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
             amount,
             currency: 'PLN',
             description,
-            // control,
+            control,
             URL: returnUrl,
             URLC: webhookUrl,
             p_info: user.username,
@@ -1529,47 +1528,89 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
 
 app.post("/api/payments/webhook", async (req, res) => {
     try {
-        console.log("Webhook Dotpay: ", req.body);
         const {
+            id,
             operation_number,
             operation_type,
             operation_status,
-            control,
-            email,
             operation_amount,
             operation_currency,
+            operation_original_amount,
+            operation_original_currency,
             operation_datetime,
+            control,
+            signature,
+            email,
             description
         } = req.body;
         
-        if (!operation_number || !operation_type || !operation_status) {
-            return res.status(400).json({ error: "Brak wymaganych danych." });
+        const calculateSignature = () => {
+            const parametersList = [
+                'id', 'operation_number', 'operation_type', 'operation_status', 
+                'operation_amount', 'operation_currency', 'operation_withdrawal_amount', 
+                'operation_commission_amount', 'is_completed', 'operation_original_amount', 
+                'operation_original_currency', 'operation_datetime', 'operation_related_number', 
+                'control', 'description', 'email', 'p_info', 'p_email', 
+                'credit_card_issuer_identification_number', 'credit_card_masked_number', 
+                'credit_card_expiration_year', 'credit_card_expiration_month', 
+                'credit_card_brand_codename', 'credit_card_brand_code', 
+                'credit_card_unique_identifier', 'credit_card_id', 'channel', 
+                'channel_country', 'geoip_country', 'payer_bank_account_name', 
+                'payer_bank_account', 'payer_transfer_title', 'blik_voucher_pin', 
+                'blik_voucher_amount', 'blik_voucher_amount_used', 'channel_reference_id', 
+                'operation_seller_code'
+            ];
+
+            let concatenated = DOTPAY_PIN;
+            for (const paramName of parametersList) {
+                const value = req.body[paramName] || '';
+                concatenated += value;
+            }
+
+            return crypto.createHash('sha256').update(concatenated).digest('hex');
+        };
+
+        const calculatedSignature = calculateSignature();
+        
+        if (signature !== calculatedSignature) {
+            console.error("Weryfikacja podpisu nieudana, możliwa próba oszustwa!");
+            console.log("Otrzymany podpis:", signature);
+            console.log("Obliczony podpis:", calculatedSignature);
+            return res.status(403).json({ error: "Nieprawidłowy podpis." });
+        }
+        
+        if (operation_original_amount !== req.body.amount || operation_original_currency !== req.body.currency) {
+            console.error("Kwota lub waluta niezgodna z oczekiwaną!");
+            return res.status(400).json({ error: "Niezgodna kwota lub waluta." });
         }
 
         if (operation_status === "completed" && operation_type === "payment") {
-            // if (control && control.includes('_')) {
-            //     const parts = control.split('_');
-            //     if (parts.length >= 3) {
-            //         const subscriptionId = parts[1];
-            //         const userId = parts[2];
+            if (control && control.includes('_')) {
+                const parts = control.split('_');
+                if (parts.length >= 3) {
+                    const subscriptionId = parts[1];
+                    const userId = parts[2];
                     
-            //         const subscription = await Subscription.findOne({
-            //             where: { 
-            //                 id: subscriptionId,
-            //                 UserId: userId,
-            //                 status: 'PENDING'
-            //             }
-            //         });
+                    const subscription = await Subscription.findOne({
+                        where: { 
+                            id: subscriptionId,
+                            UserId: userId,
+                            status: 'PENDING'
+                        }
+                    });
                     
-            //         if (subscription) {
-            //             subscription.status = "ACTIVE";
-            //             await subscription.save();
-            //             console.log(`Aktywowano subskrypcję ID: ${subscriptionId}.`);
-            //         } else {
-            //             console.log(`Nie znaleziono subskrypcji dla id=${subscriptionId}, userId=${userId}`);
-            //         }
-            //     }
-            // } 
+                    if (subscription) {
+                        subscription.status = "ACTIVE";
+                        subscription.transaction_id = operation_number;
+                        await subscription.save();
+                        console.log(`Aktywowano subskrypcję ID: ${subscriptionId} (operation_number: ${operation_number}).`);
+                        return res.status(200).send("OK");
+                    } else {
+                        console.log(`Nie znaleziono subskrypcji dla id=${subscriptionId}, userId=${userId}`);
+                    }
+                }
+            }
+            
             const user = await User.findOne({
                 where: { email: email }
             });
@@ -1585,13 +1626,14 @@ app.post("/api/payments/webhook", async (req, res) => {
                 
                 if (pendingSubscription) {
                     pendingSubscription.status = "ACTIVE";
+                    pendingSubscription.transaction_id = operation_number;
                     await pendingSubscription.save();
-                    console.log(`Aktywowano subskrypcję dla użytkownika ${user.username} na podstawie email`);
+                    console.log(`Aktywowano subskrypcję dla użytkownika ${user.username} (email: ${email}, operation_number: ${operation_number})`);
                 }
             }
         }
         
-        res.status(200).json({ message: "OK" });
+        res.status(200).send("OK");
         
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
