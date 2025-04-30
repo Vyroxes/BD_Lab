@@ -1482,7 +1482,7 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
             amount,
             currency: 'PLN',
             description,
-            control,
+            // control,
             URL: returnUrl,
             URLC: webhookUrl,
             p_info: user.username,
@@ -1547,48 +1547,46 @@ app.post("/api/payments/webhook", async (req, res) => {
         }
 
         if (operation_status === "completed" && operation_type === "payment") {
-            if (control && control.includes('_')) {
-                const parts = control.split('_');
-                if (parts.length >= 3) {
-                    const subscriptionId = parts[1];
-                    const userId = parts[2];
+            // if (control && control.includes('_')) {
+            //     const parts = control.split('_');
+            //     if (parts.length >= 3) {
+            //         const subscriptionId = parts[1];
+            //         const userId = parts[2];
                     
-                    const subscription = await Subscription.findOne({
-                        where: { 
-                            id: subscriptionId,
-                            UserId: userId,
-                            status: 'PENDING'
-                        }
-                    });
+            //         const subscription = await Subscription.findOne({
+            //             where: { 
+            //                 id: subscriptionId,
+            //                 UserId: userId,
+            //                 status: 'PENDING'
+            //             }
+            //         });
                     
-                    if (subscription) {
-                        subscription.status = "ACTIVE";
-                        await subscription.save();
-                        console.log(`Aktywowano subskrypcję ID: ${subscriptionId}.`);
-                    } else {
-                        console.log(`Nie znaleziono subskrypcji dla id=${subscriptionId}, userId=${userId}`);
-                    }
-                }
-            } 
-            else if (email) {
-                const user = await User.findOne({
-                    where: { email: email }
+            //         if (subscription) {
+            //             subscription.status = "ACTIVE";
+            //             await subscription.save();
+            //             console.log(`Aktywowano subskrypcję ID: ${subscriptionId}.`);
+            //         } else {
+            //             console.log(`Nie znaleziono subskrypcji dla id=${subscriptionId}, userId=${userId}`);
+            //         }
+            //     }
+            // } 
+            const user = await User.findOne({
+                where: { email: email }
+            });
+                
+            if (user) {
+                const pendingSubscription = await Subscription.findOne({
+                    where: {
+                        UserId: user.id,
+                        status: 'PENDING'
+                    },
+                    order: [['createdAt', 'DESC']]
                 });
                 
-                if (user) {
-                    const pendingSubscription = await Subscription.findOne({
-                        where: {
-                            UserId: user.id,
-                            status: 'PENDING'
-                        },
-                        order: [['createdAt', 'DESC']]
-                    });
-                    
-                    if (pendingSubscription) {
-                        pendingSubscription.status = "ACTIVE";
-                        await pendingSubscription.save();
-                        console.log(`Aktywowano subskrypcję dla użytkownika ${user.username} na podstawie email`);
-                    }
+                if (pendingSubscription) {
+                    pendingSubscription.status = "ACTIVE";
+                    await pendingSubscription.save();
+                    console.log(`Aktywowano subskrypcję dla użytkownika ${user.username} na podstawie email`);
                 }
             }
         }
