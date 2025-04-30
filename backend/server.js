@@ -1627,7 +1627,7 @@ app.use((req, res) => {
     res.status(404).json({ error: "Nie znaleziono zasobu." });
 });
 
-const server = app.listen(5000, '0.0.0.0', () => 
+const server = app.listen(5000, () => 
 {
     const address = server.address().address;
     const port = server.address().port;
