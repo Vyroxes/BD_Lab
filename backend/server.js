@@ -1446,14 +1446,14 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
                 status: 'PENDING'
             });
             
-            control = `SUB_${subscription.id}_${user.id}`;
+            const timestamp = Date.now();
+            control = `SUB_${subscription.id}_${user.id}_${timestamp}`;
             subscription.payment_id = control;
             await subscription.save();
         }
 
-        function generateSignature(params, pin)
-        {
-            const parameterOrder = [
+        function generateSignature(params, pin) {
+            const kolejnosc = [
                 'api_version', 'charset', 'lang', 'id', 'amount', 'currency',
                 'description', 'control', 'channel', 'ch_lock', 'URL', 'type', 'buttontext',
                 'URLC', 'firstname', 'lastname', 'email', 'street', 'street_n1',
@@ -1465,9 +1465,9 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
                 'customer', 'payer'
             ];
 
-            const values = parameterOrder.map(key => params[key] || '');
-            const concatenatedString = pin + values.join('');
-            return crypto.createHash('sha256').update(concatenatedString).digest('hex');
+            const wartosci = kolejnosc.map(klucz => params[klucz] || '');
+            const ciag = pin + wartosci.join('');
+            return crypto.createHash('sha256').update(ciag).digest('hex');
         }
 
         const amount = plan === 'PREMIUM' ? '19.99' : '34.99';
@@ -1557,7 +1557,7 @@ app.post("/api/payments/webhook", async (req, res) => {
                         where: { 
                             id: subscriptionId,
                             UserId: userId,
-                            payment_id: control
+                            status: 'PENDING'
                         }
                     });
                     
@@ -1565,6 +1565,8 @@ app.post("/api/payments/webhook", async (req, res) => {
                         subscription.status = "ACTIVE";
                         await subscription.save();
                         console.log(`Aktywowano subskrypcję ID: ${subscriptionId}.`);
+                    } else {
+                        console.log(`Nie znaleziono subskrypcji dla id=${subscriptionId}, userId=${userId}`);
                     }
                 }
             } 
