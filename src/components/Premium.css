@@ -23,6 +23,21 @@
     animation: expandLine 1.5s ease-out forwards 0.8s;
 }
 
+.premium-container h2 {
+    transition: all 0.3s ease;
+}
+
+.premium-container h2:hover {
+    color: #4caf50;
+    box-shadow: 5px rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px);
+    scale: 1.05;
+}
+
+.current-subscription {
+    animation: slideInUp 0.8s ease-out forwards;
+}
+
 .error-message,
 .payment-message {
     color: #f44336;
@@ -44,6 +59,32 @@
     justify-content: center;
     gap: 20px;
     animation: slideInUp 0.8s ease forwards;
+}
+
+.upgrade-premiumplus {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    animation: slideInUp 0.8s ease forwards;
+    margin-top: 20px;
+}
+
+.upgrade-premiumplus h4 {
+    color: #4caf50;
+    line-height: 0;
+}
+
+.active-subscription {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.subscription-date {
+    color: #4caf50;
 }
 
 .premium-content,
@@ -210,7 +251,7 @@
 
 @keyframes expandLine {
     from { width: 0; }
-    to { width: calc(100vw - 40px); }
+    to { width: calc(100dvw - 40px); }
 }
 
 @keyframes fadeIn {

@@ -1,18 +1,38 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CiLogout } from "react-icons/ci";
 import { useNavigate, useLocation } from "react-router-dom";
-import { getCookie, clearTokens, authAxios } from '../utils/Auth';
+import { getCookie, clearTokens, authAxios, refreshAccessToken } from '../utils/Auth';
 
 import './Header.css';
 
 const Header = () => {
     const [avatarUrl, setAvatarUrl] = useState(null);
 
-    const username = getCookie("username");
+    const [username, setUsername] = useState(getCookie("username"));
     const navigate = useNavigate();
     const location = useLocation();
 
     const apiUrl = import.meta.env.VITE_API_URL;
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const accessToken = getCookie("access_token");
+            const refreshToken = getCookie("refresh_token");
+            const currentUsername = getCookie("username");
+
+            if (currentUsername !== username) {
+                setUsername(currentUsername);
+            }
+            if (currentUsername == undefined || currentUsername == null || currentUsername == "" || accessToken == undefined || accessToken == null || accessToken == "") {
+                refreshAccessToken();
+            }
+            if ((accessToken == undefined || accessToken == null || accessToken == "") && (refreshToken == undefined || refreshToken == null || refreshToken == "")) {
+                clearTokens();
+                navigate("/login");
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [username]);
 
     useEffect(() => {
         const fetchAvatar = async () => {
@@ -21,7 +41,6 @@ const Header = () => {
                     const response = await authAxios.get(`${apiUrl}/api/user/${username}`, {
                         withCredentials: true,
                     });
-
                     if (response.status === 200) {
                         setAvatarUrl(response.data.avatar_url);
                     }
@@ -30,7 +49,6 @@ const Header = () => {
                 }
             }
         };
-
         fetchAvatar();
     }, [username]);
 
@@ -66,16 +84,22 @@ const Header = () => {
             <nav className="nav">
                 <ul>
                     <li className={location.pathname === "/home" ? "active" : ""}>
-                        <a href="/home">STRONA GŁÓWNA</a>
+                        <p onClick={() => navigate("/home")}>
+                            STRONA GŁÓWNA
+                        </p>
                     </li>
                     <li className={location.pathname.startsWith("/product") ? "active" : ""}>
-                        <a href="/products">PRODUKTY</a>
+                        <p onClick={() => navigate("/products")}>
+                            PRODUKTY
+                        </p>
                     </li>
                     <li className={location.pathname.startsWith("/premium") ? "active" : ""}>
-                        <a href="/premium">PREMIUM</a>
+                        <p onClick={() => navigate("/premium")}>
+                            PREMIUM
+                        </p>
                     </li>
                     <li className={location.pathname.startsWith(`/user`) ? "active" : ""}>
-                        <a href={`/users/${username}`}>
+                        <p onClick={() => navigate(`/users/${username}`)}>
                             <img
                                 src={avatarUrl || "/unknown_avatar.jpg"}
                                 alt={username}
@@ -87,13 +111,13 @@ const Header = () => {
                                 loading="lazy"
                             />
                             {username}
-                        </a>
+                        </p>
                     </li>
-                    <li onClick={(e) => {
+                    <li className="logout-nav" onClick={(e) => {
                         e.preventDefault();
                         handleLogout();
                     }}>
-                        <a><CiLogout className="logout-icon"/></a>
+                        <p><CiLogout className="logout-icon"/></p>
                     </li>
                 </ul>
             </nav>

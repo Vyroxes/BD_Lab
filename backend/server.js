@@ -3,11 +3,13 @@ import fetch from "node-fetch";
 import passport from "passport";
 import { Strategy as DiscordStrategy } from "passport-discord";
 import { Strategy as GitHubStrategy } from "passport-github2";
-import { Sequelize, DataTypes, Op } from "sequelize";
+import { Sequelize, Op, DataTypes } from "sequelize";
+import Stripe from "stripe";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import cors from "cors";
+import fs from "fs";
 import swaggerJsDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import dotenv from "dotenv";
@@ -17,30 +19,32 @@ import rateLimit from "express-rate-limit";
 dotenv.config({path: "../.env"});
 
 const app = express();
+const URL = process.env.URL;
 const VITE_API_URL = process.env.VITE_API_URL;
 const ACCESS_TOKEN_KEY = process.env.ACCESS_TOKEN_KEY;
 const REFRESH_TOKEN_KEY = process.env.REFRESH_TOKEN_KEY;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-const DOTPAY_ID = process.env.DOTPAY_ID;
-const DOTPAY_PIN = process.env.DOTPAY_PIN;
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const stripe = new Stripe(STRIPE_SECRET_KEY);
+
+const BLOCKED_IPS = [
+    '192.168.1.100'
+];
 
 app.use(
     cors({
         credentials: true,
-        // origin: function(origin, callback) {
-        //     callback(null, true);
-        // },
-        origin: ["https://bd-lab-1.onrender.com", "http://localhost:5173", "http://192.168.1.5:5173", "https://github.com", "https://discord.com"],
+        origin: ["http://ip8.vp2.titanaxe.com", "http://ip8.vp2.titanaxe.com:5173", "http://localhost:5173", "http://192.168.1.5:5173",
+            "https://github.com", "https://discord.com"],
         methods: ["OPTIONS", "GET", "POST", "PATCH", "DELETE"],
         allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
         exposedHeaders: ["Content-Length", "Content-Type"],
         optionsSuccessStatus: 200
     })
 );
-
-app.options('*', cors());
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -70,9 +74,10 @@ passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((obj, done) => done(null, obj));
 
 app.use(passport.initialize());
-app.use(express.json());
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+app.use(express.json({ limit: '2mb'}));
 app.use(limiter);
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -95,11 +100,60 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use((req, res, next) => {
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.connection.remoteAddress;
+    if (BLOCKED_IPS.includes(clientIp)) {
+        return res.status(403).json({ error: "Twój adres IP jest zablokowany." });
+    }
+    next();
+});
+
+function formatDate(date) {
+    const pad = (n) => n < 10 ? '0' + n : n;
+    return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear().toString().slice(-2)} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+let logNumber = 1;
+if (fs.existsSync("logi.txt")) {
+    const lines = fs.readFileSync("logi.txt", 'utf8').split('\n').filter(line => /^\d+\./.test(line));
+    if (lines.length > 0) {
+        const lastLine = lines[lines.length - 1];
+        const match = lastLine.match(/^(\d+)\./);
+        if (match) {
+            logNumber = parseInt(match[1], 10) + 1;
+        }
+    }
+}
+
+app.use((req, res, next) => {
+    const now = new Date();
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.connection.remoteAddress;
+    const headerLine = `${logNumber}. ${formatDate(now)} - ${clientIp} - ${req.method} ${req.originalUrl}`;
+    const bodyLine = Object.keys(req.body).length > 0 ? JSON.stringify(req.body, null, 2) : '{}';
+    const logEntry = `${headerLine}\n${bodyLine}\n\n`;
+
+    fs.appendFile("logi.txt", logEntry, (err) => {
+        if (err) {
+            console.error('Błąd zapisu logu: ', err);
+        }
+    });
+    logNumber++;
+    next();
+});
+
+app.use((req, res, next) => {
+    if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+        return res.status(413).json({ error: 'Przesyłanie plików jest zablokowane.' });
+    }
+    next();
+});
+
 app.disable("x-powered-by");
 
 const sequelize = new Sequelize({
     dialect: "sqlite",
-    storage: "users.db"
+    storage: "users.db",
+    logging: false
 });
 
 const User = sequelize.define("User", {
@@ -158,11 +212,40 @@ const Product = sequelize.define("Product",
     }
 });
 
+const UserProduct = sequelize.define("UserProduct",
+{
+    username: {
+        type: DataTypes.STRING,
+        validate: { len: [5, 20] },
+        allowNull: false,
+    },
+    email: {
+        type: DataTypes.STRING,
+        validate: { isEmail: true, len: [6, 320] },
+        allowNull: false,
+    },
+    product: {
+        type: DataTypes.STRING,
+        validate: { len: [3, 20] },
+        allowNull: false
+    }
+});
+
 const Blacklist = sequelize.define("Blacklist", {
     id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
+    },
+    username: {
+        type: DataTypes.STRING,
+        validate: { len: [5, 20] },
+        allowNull: false,
+    },
+    email: {
+        type: DataTypes.STRING,
+        validate: { isEmail: true, len: [6, 320] },
+        allowNull: false,
     },
     jti: {
         type: DataTypes.STRING,
@@ -183,12 +266,37 @@ const Subscription = sequelize.define("Subscription", {
         autoIncrement: true,
         primaryKey: true
     },
+    username: {
+        type: DataTypes.STRING,
+        validate: { len: [5, 20] },
+        allowNull: false,
+    },
+    email: {
+        type: DataTypes.STRING,
+        validate: { isEmail: true, len: [6, 320] },
+        allowNull: false,
+    },
     plan: {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
             isIn: [['PREMIUM', 'PREMIUM+']]
         }
+    },
+    status: {
+        type: DataTypes.STRING,
+        defaultValue: 'PENDING',
+        validate: {
+            isIn: [['PENDING', 'ACTIVE', 'EXPIRED', 'CANCELLED']]
+        }
+    },
+    payment_id: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    payment_intent: {
+        type: DataTypes.STRING,
+        allowNull: true
     },
     start_date: {
         type: DataTypes.DATE,
@@ -198,21 +306,9 @@ const Subscription = sequelize.define("Subscription", {
     end_date: {
         type: DataTypes.DATE,
         allowNull: false
-    },
-    payment_id: {
-        type: DataTypes.STRING,
-        allowNull: true
-    },
-    status: {
-        type: DataTypes.STRING,
-        defaultValue: 'PENDING',
-        validate: {
-            isIn: [['PENDING', 'ACTIVE', 'EXPIRED', 'CANCELLED']]
-        }
     }
 });
 
-const UserProduct = sequelize.define("UserProduct", {});
 User.hasMany(Subscription);
 Subscription.belongsTo(User);
 User.belongsToMany(Product, { through: UserProduct });
@@ -361,6 +457,28 @@ const swaggerOptions = {
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
+app.use((req, res, next) => {
+    let username = req.body?.username || req.body?.email || null;
+    if (!username && req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+        try {
+            const token = req.headers.authorization.split(" ")[1];
+            const decoded = jwt.decode(token);
+            if (decoded) {
+                username = decoded.username || decoded.email || null;
+            }
+        } catch (e) {}
+    }
+
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.connection.remoteAddress;
+
+    const now = new Date();
+    const pad = n => n < 10 ? '0' + n : n;
+    const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear().toString().slice(-2)} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    console.log(`[${dateStr}] ${req.method} ${req.originalUrl} | ip: ${clientIp} | user: ${username || "-"} | body: ${JSON.stringify(req.body)}`);
+    next();
+});
+
 /**
  * @swagger
  * /api/delete-account/{username}:
@@ -442,14 +560,18 @@ app.delete("/api/delete-account/:username", jwtAuth, async (req, res) => {
  *         description: Wystąpił błąd serwera
  */
 
-app.get("/api/user/:username", async (req, res) => {
+app.get("/api/user/:username", jwtAuth, async (req, res) => {
     try {
-        const user = await User.findOne({
+        let user = await User.findOne({
             where: sequelize.where(
-                sequelize.fn('LOWER', sequelize.col('username')), 
+                sequelize.fn('LOWER', sequelize.col('username')),
                 sequelize.fn('LOWER', req.params.username)
             )
         });
+
+        if (!user && req.user && req.user.id) {
+            user = await User.findByPk(req.user.id);
+        }
 
         if (!user) {
             return res.status(404).json({ error: "Użytkownik nie znaleziony." });
@@ -533,8 +655,8 @@ app.post("/api/register", async (req, res) => {
         const refresh_jti = crypto.randomUUID();
         const access_token_expiresIn = "00:00:10:00";
         const refresh_token_expiresIn = "00:01:00:00";
-        const access_token = jwt.sign({ id: newUser.id, username: newUser.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
-        const refresh_token = jwt.sign({ id: newUser.id, username: newUser.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: '1h' });
+        const access_token = jwt.sign({ id: newUser.id, username: newUser.username, email: newUser.email, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
+        const refresh_token = jwt.sign({ id: newUser.id, username: newUser.username, email: newUser.email, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: '1h' });
 
         res.status(201).json({ message: "Zarejestrowano pomyślnie.", username: newUser.username, email: newUser.email, access_token: access_token, refresh_token: refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString()});
     } catch (error) {
@@ -613,8 +735,8 @@ app.post("/api/login", async (req, res) => {
         const access_token_expiresIn = "00:00:10:00";
         const refresh_token_expiresIn = remember ? "01:00:00:00" : "00:01:00:00";
 
-        const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
-        const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: remember ? '1d' : '1h' });
+        const access_token = jwt.sign({ id: user.id, username: user.username, email: user.email, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
+        const refresh_token = jwt.sign({ id: user.id, username: user.username, email: user.email, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: remember ? '1d' : '1h' });
 
         res.status(200).json({ message: "Zalogowano pomyślnie.", username: user.username, email: user.email, access_token: access_token, refresh_token: refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString()});
     } catch (error) {
@@ -652,12 +774,16 @@ app.post("/api/logout", async (req, res) => {
         const accessTokenExpiresAt = new Date(decodedAccessToken.exp * 1000);
         const refreshTokenExpiresAt = new Date(decodedRefreshToken.exp * 1000);
 
-        await Blacklist.upsert({ 
-            jti: decodedAccessToken.jti, 
+        await Blacklist.upsert({
+            username: decodedAccessToken.username,
+            email: decodedAccessToken.email,
+            jti: decodedAccessToken.jti,
             expires_at: accessTokenExpiresAt 
         });
         
         await Blacklist.upsert({ 
+            username: decodedRefreshToken.username,
+            email: decodedRefreshToken.email,
             jti: decodedRefreshToken.jti, 
             expires_at: refreshTokenExpiresAt 
         });
@@ -720,34 +846,13 @@ app.post("/api/refresh", async (req, res) => {
             const refresh_jti = crypto.randomUUID();
             const access_token_expiresIn = "00:00:10:00";
             const refresh_token_expiresIn = "00:01:00:00";
-            const new_access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
-            const new_refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: '1h' });
+            const new_access_token = jwt.sign({ id: user.id, username: user.username, email: user.email, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: '10m' });
+            const new_refresh_token = jwt.sign({ id: user.id, username: user.username, email: user.email, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: '1h' });
             
             res.status(200).json({ message: "Odświeżono tokeny.", username: user.username, email: user.email, access_token: new_access_token, refresh_token: new_refresh_token, expire_time: access_token_expiresIn.toString(), refresh_expire_time: refresh_token_expiresIn.toString() });
         } catch (verifyError) {
             return res.status(401).json({ error: "Nieprawidłowy refresh token." });
         }
-    } catch (error) {
-        res.status(500).json({ error: "Wystąpił błąd serwera." });
-    }
-});
-
-/**
- * @swagger
- * /api/clear-session:
- *   get:
- *     summary: Usunięcie ciasteczka sesji
- *     responses:
- *       200:
- *         description: Ciasteczko sesji usunięte
- *       500:
- *         description: Wystąpił błąd serwera
- */
-
-app.get("/api/clear-session", async (req, res) => {
-    try {
-        res.clearCookie("session");
-        res.status(200).json({ message: "Ciasteczko 'session' usunięte." });
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
@@ -885,7 +990,7 @@ app.post("/api/add-product", jwtAuth, async (req, res) => {
             return res.status(409).json({ error: "Taki produkt już istnieje." });
         }
 
-        await user.addProduct(existingProduct);
+        await user.addProduct(existingProduct, { through: { username: user.username, email: user.email, product: product } });
 
         res.status(201).json({ message: "Produkt dodany.", product: existingProduct });
     } catch (error) {
@@ -1098,7 +1203,7 @@ app.get("/api/auth/github", async (req, res, next) => {
     try {
         if (req.query.error === "access_denied") {
             res.clearCookie("session");
-            return res.redirect("https://bd-lab-1.onrender.com/login");
+            return res.redirect(`${URL}/login`);
         }
 
         passport.authenticate('github', async (err, authData) => {
@@ -1122,7 +1227,7 @@ app.get("/api/auth/github", async (req, res, next) => {
                     const response = await fetch('https://api.github.com/user/emails', {
                         headers: {
                             'Authorization': `token ${accessToken}`,
-                            'User-Agent': 'BD_Lab-App'
+                            'User-Agent': 'BD_Lab'
                         }
                     });
                     
@@ -1225,10 +1330,10 @@ app.get("/api/auth/github", async (req, res, next) => {
             const access_token_expiresIn = "00:00:10:00";
             const refresh_token_expiresIn = "01:00:00:00";
             
-            const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: "10m" });
-            const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: "1d" });
+            const access_token = jwt.sign({ id: user.id, username: user.username, email: user.email, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: "10m" });
+            const refresh_token = jwt.sign({ id: user.id, username: user.username, email: user.email, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: "1d" });
 
-            return res.redirect(`https://bd-lab-1.onrender.com/auth-callback?username=${encodeURIComponent(user.username)}&email=${encodeURIComponent(user.email)}&access_token=${encodeURIComponent(access_token)}&refresh_token=${encodeURIComponent(refresh_token)}&expire_time=${encodeURIComponent(access_token_expiresIn.toString())}&refresh_expire_time=${encodeURIComponent(refresh_token_expiresIn.toString())}`);
+            return res.redirect(`${URL}/auth-callback?username=${encodeURIComponent(user.username)}&email=${encodeURIComponent(user.email)}&access_token=${encodeURIComponent(access_token)}&refresh_token=${encodeURIComponent(refresh_token)}&expire_time=${encodeURIComponent(access_token_expiresIn.toString())}&refresh_expire_time=${encodeURIComponent(refresh_token_expiresIn.toString())}`);
             
         })(req, res, next);
     } catch (error) {
@@ -1287,7 +1392,7 @@ app.get("/api/auth/discord", async (req, res, next) => {
     try {
         if (req.query.error === "access_denied") {
             res.clearCookie("session");
-            return res.redirect("https://bd-lab-1.onrender.com/login");
+            return res.redirect(`${URL}/login`);
         }
 
         passport.authenticate('discord', async (err, discordUser) => {
@@ -1358,10 +1463,10 @@ app.get("/api/auth/discord", async (req, res, next) => {
             const access_token_expiresIn = "00:00:10:00";
             const refresh_token_expiresIn = "01:00:00:00";
             
-            const access_token = jwt.sign({ id: user.id, username: user.username, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: "10m" });
-            const refresh_token = jwt.sign({ id: user.id, username: user.username, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: "1d" });
+            const access_token = jwt.sign({ id: user.id, username: user.username, email: user.email, jti: access_jti }, ACCESS_TOKEN_KEY, { expiresIn: "10m" });
+            const refresh_token = jwt.sign({ id: user.id, username: user.username, email: user.email, jti: refresh_jti }, REFRESH_TOKEN_KEY, { expiresIn: "1d" });
 
-            return res.redirect(`https://bd-lab-1.onrender.com/auth-callback?username=${encodeURIComponent(user.username)}&email=${encodeURIComponent(user.email)}&access_token=${encodeURIComponent(access_token)}&refresh_token=${encodeURIComponent(refresh_token)}&expire_time=${encodeURIComponent(access_token_expiresIn.toString())}&refresh_expire_time=${encodeURIComponent(refresh_token_expiresIn.toString())}`);
+            return res.redirect(`${URL}/auth-callback?username=${encodeURIComponent(user.username)}&email=${encodeURIComponent(user.email)}&access_token=${encodeURIComponent(access_token)}&refresh_token=${encodeURIComponent(refresh_token)}&expire_time=${encodeURIComponent(access_token_expiresIn.toString())}&refresh_expire_time=${encodeURIComponent(refresh_token_expiresIn.toString())}`);
             
         })(req, res, next);
     } catch (error) {
@@ -1399,108 +1504,107 @@ app.get("/api/auth/discord", async (req, res, next) => {
 
 app.post("/api/payments/create", jwtAuth, async (req, res) => {
     try {
-        const { plan } = req.body;
-        
-        if (!plan || !['PREMIUM', 'PREMIUM+'].includes(plan)) {
-            return res.status(400).json({ error: "Nieprawidłowy plan. Wybierz PREMIUM lub PREMIUM+." });
+        let { plan } = req.body;
+        if (!plan || !['PREMIUM', 'PREMIUM+', 'PREMIUM+_UPGRADE'].includes(plan)) {
+            return res.status(400).json({ error: "Nieprawidłowy plan. Wybierz PREMIUM, PREMIUM+ lub PREMIUM+_UPGRADE." });
         }
-        
+
         const user = await User.findByPk(req.user.id);
         if (!user) {
             return res.status(404).json({ error: "Nie znaleziono użytkownika." });
         }
-        
-        const existingPendingSubscription = await Subscription.findOne({
-            where: {
-                UserId: user.id,
-                plan: plan,
-                status: 'PENDING',
-                createdAt: {
-                    [Op.gt]: new Date(Date.now() - 24 * 60 * 60 * 1000)
-                }
-            },
-            order: [['createdAt', 'DESC']]
-        });
-        
-        let subscription;
-        let control;
-        
-        if (existingPendingSubscription) {
-            subscription = existingPendingSubscription;
-            
-            if (existingPendingSubscription.payment_id) {
-                control = existingPendingSubscription.payment_id;
-            } else {
-                control = `SUB_${subscription.id}_${user.id}`;
-                subscription.payment_id = control;
-                await subscription.save();
-            }
-        } else {
-            const endDate = new Date();
-            endDate.setDate(endDate.getDate() + 30);
-            
-            subscription = await Subscription.create({
-                UserId: user.id,
-                plan,
-                end_date: endDate,
-                status: 'PENDING'
+
+        if (plan === 'PREMIUM+_UPGRADE') {
+            const premiumSub = await Subscription.findOne({
+                where: {
+                    UserId: user.id,
+                    plan: 'PREMIUM',
+                    status: 'ACTIVE'
+                },
+                order: [['end_date', 'DESC']]
             });
-            
-            control = `SUB_${subscription.id}_${user.id}`;
-            subscription.payment_id = control;
-            await subscription.save();
+            if (!premiumSub) {
+                return res.status(400).json({ error: "Nie masz aktywnej subskrypcji PREMIUM do ulepszenia." });
+            }
+            plan = 'PREMIUM+';
+
+            premiumSub.plan = 'PREMIUM+';
+            premiumSub.status = 'PENDING';
+            await premiumSub.save();
+
+            var subscription = premiumSub;
+        } else {
+            const existingPendingSubscription = await Subscription.findOne({
+                where: {
+                    UserId: user.id,
+                    username: user.username,
+                    email: user.email,
+                    plan: plan,
+                    status: 'PENDING',
+                    createdAt: {
+                        [Op.gt]: new Date(Date.now() - 24 * 60 * 60 * 1000)
+                    }
+                },
+                order: [['createdAt', 'DESC']]
+            });
+
+            if (existingPendingSubscription) {
+                var subscription = existingPendingSubscription;
+            } else {
+                const endDate = new Date();
+                endDate.setDate(endDate.getDate() + 30);
+                var subscription = await Subscription.create({
+                    UserId: user.id,
+                    username: user.username,
+                    email: user.email,
+                    plan,
+                    status: 'PENDING',
+                    end_date: endDate
+                });
+            }
         }
 
-        function generateSignature(params, pin) {
-            const parameterOrder = [
-                'api_version', 'charset', 'lang', 'id', 'amount', 'currency',
-                'description', 'control', 'channel', 'ch_lock', 'URL', 'type', 'buttontext',
-                'URLC', 'firstname', 'lastname', 'email', 'street', 'street_n1',
-                'street_n2', 'state', 'addr3', 'city', 'postcode', 'phone', 'country',
-                'code', 'p_info', 'p_email', 'n_email', 'expiration_date', 'deladdr',
-                'recipient_account_number', 'recipient_company', 'recipient_first_name',
-                'recipient_last_name', 'recipient_street', 'recipient_postcode',
-                'recipient_city', 'application', 'application_version', 'sdk_version',
-                'customer', 'payer'
-            ];
-
-            const values = parameterOrder.map(key => params[key] || '');
-            const concatenatedString = pin + values.join('');
-            return crypto.createHash('sha256').update(concatenatedString).digest('hex');
+        let amount, description;
+        if (plan === 'PREMIUM') {
+            amount = 1999;
+            description = 'Pakiet PREMIUM';
+        } else if (plan === 'PREMIUM+') {
+            amount = req.body.plan === 'PREMIUM+_UPGRADE' ? 1499 : 3499;
+            description = req.body.plan === 'PREMIUM+_UPGRADE' ? 'Pakiet PREMIUM+ UPGRADE' : 'Pakiet PREMIUM+';
         }
 
-        const amount = plan === 'PREMIUM' ? '19.99' : '34.99';
-        const description = plan === 'PREMIUM' ? 'Pakiet PREMIUM' : 'Pakiet PREMIUM+';
-
-        const returnUrl = 'https://bd-lab-1.onrender.com/premium';
-        const webhookUrl = 'https://bd-lab-1.onrender.com/api/payments/webhook';
-
-        const data = {
-            api_version: 'dev',
-            id: DOTPAY_ID,
-            amount,
-            currency: 'PLN',
-            description,
-            control,
-            URL: returnUrl,
-            URLC: webhookUrl,
-            p_info: user.username,
-            p_email: user.email,
-            type: '4'
-        };
-
-        const chk = generateSignature(data, DOTPAY_PIN);
-        data.chk = chk;
-
-        const params = new URLSearchParams(data);
-        const payment_url = `https://ssl.dotpay.pl/test_payment/?${params.toString()}`;
-        
-        res.status(200).json({ 
-            message: "Przekierowanie do systemu płatności.", 
-            payment_url: payment_url,
-            subscription_id: subscription.id 
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card', 'blik', 'p24', 'link', 'revolut_pay', 'paypal', 'mobilepay'],
+            mode: 'payment',
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'pln',
+                        product_data: {
+                            name: description,
+                        },
+                        unit_amount: amount,
+                    },
+                    quantity: 1,
+                },
+            ],
+            customer_email: user.email,
+            metadata: {
+                userId: user.id,
+                subscriptionId: subscription.id,
+                plan: plan
+            },
+            success_url: `${process.env.URL || URL}/premium?status=ok`,
+            cancel_url: `${process.env.URL || URL}/premium?status=cancelled`,
         });
-        
+        subscription.payment_id = session.id;
+        await subscription.save();
+
+        res.status(200).json({
+            message: "Przekierowanie do systemu płatności.",
+            payment_url: session.url,
+            subscription_id: subscription.id
+        });
     } catch (error) {
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
@@ -1526,116 +1630,82 @@ app.post("/api/payments/create", jwtAuth, async (req, res) => {
  *         description: Wystąpił błąd serwera
  */
 
-app.post("/api/payments/webhook", async (req, res) => {
+app.post("/api/payments/webhook", express.raw({ type: 'application/json' }), async (req, res) =>
+{
     try {
-        const {
-            id,
-            operation_number,
-            operation_type,
-            operation_status,
-            operation_amount,
-            operation_currency,
-            operation_original_amount,
-            operation_original_currency,
-            operation_datetime,
-            control,
-            signature,
-            email,
-            description
-        } = req.body;
-        
-        const calculateSignature = () => {
-            const parametersList = [
-                'id', 'operation_number', 'operation_type', 'operation_status', 
-                'operation_amount', 'operation_currency', 'operation_withdrawal_amount', 
-                'operation_commission_amount', 'is_completed', 'operation_original_amount', 
-                'operation_original_currency', 'operation_datetime', 'operation_related_number', 
-                'control', 'description', 'email', 'p_info', 'p_email', 
-                'credit_card_issuer_identification_number', 'credit_card_masked_number', 
-                'credit_card_expiration_year', 'credit_card_expiration_month', 
-                'credit_card_brand_codename', 'credit_card_brand_code', 
-                'credit_card_unique_identifier', 'credit_card_id', 'channel', 
-                'channel_country', 'geoip_country', 'payer_bank_account_name', 
-                'payer_bank_account', 'payer_transfer_title', 'blik_voucher_pin', 
-                'blik_voucher_amount', 'blik_voucher_amount_used', 'channel_reference_id', 
-                'operation_seller_code'
-            ];
+        let event;
 
-            let concatenated = DOTPAY_PIN;
-            for (const paramName of parametersList) {
-                const value = req.body[paramName] || '';
-                concatenated += value;
+        try {
+            const sig = req.headers['stripe-signature'];
+            event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+        } catch (error) {
+            console.error("Błąd weryfikacji podpisu: ", error.message);
+            return res.status(400).send("Nieprawidłowy podpis.");
+        }
+
+        if (event.type === 'checkout.session.completed') {
+            const session = event.data.object;
+            const { userId, subscriptionId } = session.metadata || {};
+
+            if (!userId || !subscriptionId) {
+                return res.status(400).send("Brak wymaganych danych w metadata.");
             }
 
-            return crypto.createHash('sha256').update(concatenated).digest('hex');
-        };
+            const user = await User.findByPk(userId);
+            const subscription = await Subscription.findByPk(subscriptionId);
 
-        const calculatedSignature = calculateSignature();
-        
-        if (signature !== calculatedSignature) {
-            console.error("Weryfikacja podpisu nieudana, możliwa próba oszustwa!");
-            console.log("Otrzymany podpis:", signature);
-            console.log("Obliczony podpis:", calculatedSignature);
-            return res.status(403).json({ error: "Nieprawidłowy podpis." });
+            if (user && subscription) {
+                if (!subscription.payment_id) {
+                    subscription.payment_id = session.id;
+                }
+                if (!subscription.payment_intent && session.payment_intent) {
+                    subscription.payment_intent = session.payment_intent;
+                }
+                if (subscription.status === 'PENDING') {
+                    subscription.status = 'ACTIVE';
+                    subscription.start_date = new Date();
+                    subscription.end_date = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                }
+                await subscription.save();
+            }
         }
-        
-        // if (operation_original_amount !== req.body.amount || operation_original_currency !== req.body.currency) {
-        //     console.error("Kwota lub waluta niezgodna z oczekiwaną!");
-        //     return res.status(400).json({ error: "Niezgodna kwota lub waluta." });
-        // }
 
-        if (operation_status === "completed" && operation_type === "payment") {
-            if (control && control.includes('_')) {
-                const parts = control.split('_');
-                if (parts.length >= 3) {
-                    const subscriptionId = parts[1];
-                    const userId = parts[2];
-                    
-                    const subscription = await Subscription.findOne({
-                        where: { 
-                            id: subscriptionId,
-                            UserId: userId,
-                            status: 'PENDING'
-                        }
-                    });
-                    
+        if (event.type === 'payment_intent.succeeded' || event.type === 'charge.succeeded') {
+            const obj = event.data.object;
+            const paymentIntentId = obj.payment_intent || obj.id;
+
+            let subscription = await Subscription.findOne({ where: { payment_intent: paymentIntentId } });
+
+            if (!subscription) {
+                const sessions = await stripe.checkout.sessions.list({
+                    payment_intent: paymentIntentId,
+                    limit: 1
+                });
+
+                if (sessions.data.length > 0) {
+                    const session = sessions.data[0];
+                    subscription = await Subscription.findOne({ where: { payment_id: session.id } });
+
                     if (subscription) {
-                        subscription.status = "ACTIVE";
-                        subscription.transaction_id = operation_number;
+                        if (!subscription.payment_intent) {
+                            subscription.payment_intent = paymentIntentId;
+                        }
                         await subscription.save();
-                        console.log(`Aktywowano subskrypcję ID: ${subscriptionId} (operation_number: ${operation_number}).`);
-                        return res.status(200).send("OK");
-                    } else {
-                        console.log(`Nie znaleziono subskrypcji dla id=${subscriptionId}, userId=${userId}`);
                     }
                 }
             }
-            
-            const user = await User.findOne({
-                where: { email: email }
-            });
-                
-            if (user) {
-                const pendingSubscription = await Subscription.findOne({
-                    where: {
-                        UserId: user.id,
-                        status: 'PENDING'
-                    },
-                    order: [['createdAt', 'DESC']]
-                });
-                
-                if (pendingSubscription) {
-                    pendingSubscription.status = "ACTIVE";
-                    pendingSubscription.transaction_id = operation_number;
-                    await pendingSubscription.save();
-                    console.log(`Aktywowano subskrypcję dla użytkownika ${user.username} (email: ${email}, operation_number: ${operation_number})`);
-                }
+
+            if (subscription && subscription.status === 'PENDING') {
+                subscription.status = 'ACTIVE';
+                subscription.start_date = new Date();
+                subscription.end_date = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                await subscription.save();
             }
         }
-        
+
         res.status(200).send("OK");
-        
     } catch (error) {
+        console.error("Błąd w webhooku: ", error);
         res.status(500).json({ error: "Wystąpił błąd serwera." });
     }
 });
@@ -1678,8 +1748,7 @@ app.get("/api/payments/status", jwtAuth, async (req, res) => {
             });
         }
         
-        const isActive = subscription.status === "ACTIVE" && 
-                         new Date(subscription.end_date) > new Date();
+        const isActive = subscription.status === "ACTIVE" && new Date(subscription.end_date) > new Date();
         
         return res.status(200).json({ 
             message: isActive ? "Użytkownik ma aktywną subskrypcję." : "Użytkownik ma nieaktywną subskrypcję.",
@@ -1696,11 +1765,87 @@ app.get("/api/payments/status", jwtAuth, async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/payments/set:
+ *   post:
+ *     summary: Ustaw lub anuluj subskrypcję użytkownika
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               plan:
+ *                 type: string
+ *                 enum: [PREMIUM, PREMIUM+]
+ *                 description: Plan subskrypcji
+ *               status:
+ *                 type: string
+ *                 enum: [PENDING, ACTIVE, EXPIRED, CANCELLED]
+ *                 description: Status subskrypcji
+ *     responses:
+ *       200:
+ *         description: Subskrypcja zaktualizowana lub anulowana
+ *       400:
+ *         description: Nieprawidłowe dane wejściowe
+ *       404:
+ *         description: Subskrypcja nie znaleziona
+ *       500:
+ *         description: Wystąpił błąd serwera
+ */
+app.post("/api/payments/set", jwtAuth, async (req, res) => {
+    try {
+        const { plan, status } = req.body;
+        const user = await User.findByPk(req.user.id);
+        if (!user) {
+            return res.status(404).json({ error: "Nie znaleziono użytkownika." });
+        }
+
+        if (!status || !['PENDING', 'ACTIVE', 'EXPIRED', 'CANCELLED'].includes(status)) {
+            return res.status(400).json({ error: "Nieprawidłowy status." });
+        }
+
+        let subscription;
+
+        if (status === 'CANCELLED') {
+            subscription = await Subscription.findOne({
+                where: { UserId: user.id },
+                order: [['createdAt', 'DESC']]
+            });
+            if (!subscription) {
+                return res.status(404).json({ error: "Nie znaleziono subskrypcji do anulowania." });
+            }
+        } else {
+            if (!plan || !['PREMIUM', 'PREMIUM+'].includes(plan)) {
+                return res.status(400).json({ error: "Nieprawidłowy plan." });
+            }
+            subscription = await Subscription.findOne({
+                where: { UserId: user.id, plan },
+                order: [['createdAt', 'DESC']]
+            });
+            if (!subscription) {
+                return res.status(404).json({ error: "Nie znaleziono subskrypcji." });
+            }
+        }
+
+        subscription.status = status;
+        await subscription.save();
+
+        res.status(200).json({ message: "Subskrypcja zaktualizowana.", subscription });
+    } catch (error) {
+        res.status(500).json({ error: "Wystąpił błąd serwera." });
+    }
+});
+
 app.use((req, res) => {
     res.status(404).json({ error: "Nie znaleziono zasobu." });
 });
 
-const server = app.listen(5000, () => 
+const server = app.listen(5000, '0.0.0.0', () => 
 {
     const address = server.address().address;
     const port = server.address().port;

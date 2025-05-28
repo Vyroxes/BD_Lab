@@ -7,5 +7,6 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    allowedHosts: ['ip8.vp2.titanaxe.com']
   },
 });

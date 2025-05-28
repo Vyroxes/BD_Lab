@@ -33,6 +33,7 @@
     "react-router-dom": "^7.4.0",
     "sequelize": "^6.37.6",
     "sqlite3": "^5.1.7",
+    "stripe": "^18.1.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },

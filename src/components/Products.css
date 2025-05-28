@@ -124,7 +124,7 @@
 
 @keyframes expandLine {
     from { width: 0; }
-    to { width: calc(100vw - 40px) }
+    to { width: calc(100dvw - 40px) }
 }
 
 @keyframes pulseBg {

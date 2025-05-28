@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { FaUser, FaLock, FaGithub, FaDiscord } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { isAuthenticated, authAxios, setTokens } from '../utils/Auth';
 
 import './Login.css';
@@ -12,8 +12,10 @@ const Login = ({ onLogin }) => {
     const [password, setPassword] = useState("");
     const [remember, setRemember] = useState(false);
     const [loginError, setLoginError] = useState("");
+    const [animate, setAnimate] = useState(true);
 
     const navigate = useNavigate();
+    const location = useLocation();
 
     const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -26,6 +28,12 @@ const Login = ({ onLogin }) => {
         };
         checkAuth();
     }, [navigate]);
+
+    useEffect(() => {
+        if (location.state?.skipAnimation) {
+            setAnimate(false);
+        }
+    }, [location.state]);
 
     const isDisabled = usernameOrEmail.trim() === "" || password.trim() === "";
 
@@ -48,7 +56,7 @@ const Login = ({ onLogin }) => {
                     response.data.expire_time,
                     response.data.refresh_expire_time
                 );
-                onLogin();
+                
                 navigate('/home');
             }
         } catch (error) {
@@ -76,9 +84,15 @@ const Login = ({ onLogin }) => {
         await onSubmit();
     };
 
+    const handleRegisterClick = () => {
+        navigate('/register', { state: { skipAnimation: true } });
+    };
+
     return (
-        <div className="container-login">
+        <div className={`container-login${animate ? ' animate' : ''}`}>
             <div className="container-login2">
+                <div className='gradient-background'></div>
+                <div className='gradient-blur'></div>
                 <h1>Logowanie</h1>
                 <form onSubmit={handleSubmit}>
                     <div className="login-group">
@@ -145,7 +159,7 @@ const Login = ({ onLogin }) => {
                     </div>
                     <div className="login-register">
                         <label>Nie masz konta?</label>
-                        <button type="button" onClick={() => navigate("/register")}>
+                        <button type="button" onClick={handleRegisterClick}>
                             Zarejestruj się
                         </button>
                     </div>

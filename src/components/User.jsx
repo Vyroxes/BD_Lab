@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { authAxios, clearTokens, getCookie, getTokenExpireDate } from '../utils/Auth';
 
@@ -77,31 +77,37 @@ const User = () => {
     }, []);
 
     useEffect(() => {
-        if (username) {
-            fetchUserData();
-            setAccessTokenExpiration(
-                getTokenExpireDate("access_token") 
-                    ? getTokenExpireDate("access_token").toLocaleString('pl-PL', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    }) 
-                    : "Brak danych"
-            );
-            setRefreshTokenExpiration(
-                getTokenExpireDate("refresh_token") 
-                    ? getTokenExpireDate("refresh_token").toLocaleString('pl-PL', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })  
-                    : "Brak danych"
-            );
-        }
+        const interval = setInterval(() => {
+            const accessToken = getCookie("access_token");
+            if (accessToken) {
+                fetchUserData();
+                setAccessTokenExpiration(
+                    getTokenExpireDate("access_token") 
+                        ? getTokenExpireDate("access_token").toLocaleString('pl-PL', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }) 
+                        : "Brak danych"
+                );
+                setRefreshTokenExpiration(
+                    getTokenExpireDate("refresh_token") 
+                        ? getTokenExpireDate("refresh_token").toLocaleString('pl-PL', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })  
+                        : "Brak danych"
+                );
+                clearInterval(interval);
+            }
+        }, 500);
+
+        return () => clearInterval(interval);
     }, [username]);
 
     const fetchUserData = async () => {
@@ -111,6 +117,10 @@ const User = () => {
             });
 
             if (response.status === 200) {
+                if (response.data.username && response.data.username !== username) {
+                    navigate(`/users/${response.data.username}`, { replace: true });
+                    return;
+                }
                 setEmail(response.data.email);
                 setAvatarUrl(response.data.avatar_url);
                 setGithubId(response.data.github_id);
@@ -125,12 +135,17 @@ const User = () => {
                 });
                 setAccountCreated(formattedDate);
                 setLoading(false);
-            } else {
-                navigate('/home');
+            } else if (response.status === 404) {
+                console.error("Użytkownik nie znaleziony.");
+                // navigate('/home');
             }
         } catch (error) {
-            console.error("Błąd podczas pobierania danych użytkownika: ", error);
-            navigate('/home');
+            if (error.response && error.response.status === 404) {
+                console.error("Użytkownik nie znaleziony.");
+                // navigate('/home');
+            } else {
+                console.error("Błąd podczas pobierania danych użytkownika: ", error);
+            }
         }
     };
 
@@ -207,9 +222,6 @@ const User = () => {
                     </li>
                     <li>Czas do wygaśnięcia refresh tokenu:
                         <p>{timeToRefreshTokenExpire}</p>
-                    </li>
-                    <li>Session token:
-                        <textarea readOnly value={getCookie("session") || "brak"}></textarea>
                     </li>
                 </>)}
             </div>

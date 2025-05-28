@@ -1,24 +1,3 @@
-/* .container-login2:has(.register-error-text) .register-button-show-password,
-.container-login2:has(.register-error-text2) .register-button-show-password {
-    top: 46.1%;
-}
-
-.container-login2:has(.register-error-text):has(.register-error-text2) .register-button-show-password {
-    top: 43.2%;
-} */
-
-/* .register-button-show-password {
-    padding: 0.4rem 0.4rem 0rem 0.4rem;
-    background: transparent;
-    border: none !important;
-    border-radius: 20px;
-    position: absolute;
-    right: 13.7%;
-    top: 49.8%;
-    color: #b6b6b6;
-    transition: color 0.2s ease;
-} */
-
 .register-button-show-password {
     position: absolute;
     right: 12px;
@@ -58,8 +37,5 @@
 .register-error-text,
 .register-error-text2 {
     color: rgb(255, 95, 95);
-    /* text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden; */
     margin-bottom: 10px;
 }

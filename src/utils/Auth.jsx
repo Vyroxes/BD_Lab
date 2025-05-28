@@ -4,7 +4,6 @@ import { jwtDecode } from 'jwt-decode';
 const TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const USERNAME_KEY = 'username';
-const SESSION_KEY = 'session';
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -39,6 +38,7 @@ export const getCookie = (name) => {
 
 export const getAccessToken = () => getCookie(TOKEN_KEY);
 export const getRefreshToken = () => getCookie(REFRESH_TOKEN_KEY);
+export const getUsername = () => getCookie(USERNAME_KEY);
 
 export const clearTokens = () => {
     const cookies = document.cookie.split(";");
@@ -80,7 +80,7 @@ export const refreshAccessToken = async () => {
             return;
         }
 
-        if (isAccessTokenExpiringSoon() || !getAccessToken()) {
+        if (isAccessTokenExpiringSoon() || !getAccessToken() || !getUsername()) {
             const response = await axios.post(`${apiUrl}/api/refresh`, {
                 refresh_token: refreshToken
             }, {
